@@ -1,10 +1,16 @@
 # Voice Input Go
 
+[Русский](#русский) | [English](#english)
+
+---
+
+## Русский
+
 Приложение для голосового ввода текста. Записывает аудио с микрофона, распознает речь через локальный AI-сервер Whisper и автоматически вставляет текст в любое активное приложение.
 
 Работает полностью локально — ваши данные не покидают компьютер.
 
-## Возможности
+### Возможности
 
 - **Голосовой ввод** — нажал горячую клавишу, надиктовал, текст появился в буфере обмена
 - **Автовставка** — опциональная автоматическая вставка (Ctrl+V) сразу после распознавания
@@ -16,13 +22,13 @@
 - **Двуязычный интерфейс** — русский и английский
 - **Автозапуск** — опциональный запуск при входе в систему
 
-## Требования
+### Требования
 
-### Lemonade Server (обязательно)
+#### Lemonade Server (обязательно)
 
 Voice Input Go использует [Lemonade Server](https://lemonade-server.ai/) для распознавания речи. Это локальный AI-сервер, который запускает модели Whisper на вашем компьютере.
 
-#### Установка Lemonade Server
+**Установка Lemonade Server:**
 
 1. Скачайте установщик со [страницы релизов](https://github.com/lemonade-sdk/lemonade/releases)
 2. Установите и запустите Lemonade Server
@@ -41,35 +47,27 @@ Voice Input Go использует [Lemonade Server](https://lemonade-server.ai
 | Whisper-Large-v3-Turbo | ~1.6 GB | Отличное | Средняя |
 | Whisper-Large-v3 | ~3 GB | Максимальное | Медленная |
 
-## Установка
+### Установка
 
-### Windows
+**Windows** — скачайте `voice-input-go-windows-amd64.exe` со [страницы релизов](https://github.com/Pir0manT/voice-input-go/releases/latest) и запустите. Единственный файл, без зависимостей.
 
-Скачайте `voice-input-go-windows-amd64.exe` со [страницы релизов](https://github.com/Pir0manT/voice-input-go/releases/latest) и запустите. Установка не требуется — это единственный исполняемый файл без зависимостей.
-
-### Linux
-
-**deb (Ubuntu/Debian):**
+**Linux (deb):**
 ```bash
 sudo dpkg -i voice-input-go_*.deb
 ```
 
-**rpm (Fedora/RHEL):**
+**Linux (rpm):**
 ```bash
 sudo rpm -i voice-input-go-*.rpm
 ```
 
-Или скачайте бинарник `voice-input-go-linux-amd64` и поместите в `/usr/local/bin/`.
-
-### macOS (Apple Silicon)
-
-Скачайте `.dmg` файл, откройте его и перетащите Voice Input в папку Applications.
+**macOS (Apple Silicon)** — скачайте `.dmg`, откройте и перетащите Voice Input в Applications.
 
 > При первом запуске macOS попросит разрешение на использование микрофона.
 
-## Использование
+### Использование
 
-### Горячие клавиши (по умолчанию)
+#### Горячие клавиши (по умолчанию)
 
 | Действие | Windows/Linux | macOS |
 |----------|---------------|-------|
@@ -77,7 +75,7 @@ sudo rpm -i voice-input-go-*.rpm
 | Остановить + распознать | `Alt+S` | `Option+S` |
 | Открыть редактор | `Alt+E` | `Option+E` |
 
-### Рабочий процесс
+#### Рабочий процесс
 
 1. Убедитесь, что Lemonade Server запущен
 2. Запустите Voice Input Go — иконка появится в системном трее
@@ -86,45 +84,15 @@ sudo rpm -i voice-input-go-*.rpm
 5. Нажмите `Alt+S` — запись остановится, начнется распознавание (иконка станет оранжевой)
 6. Текст скопируется в буфер обмена (и автоматически вставится, если включена опция)
 
-### Меню в трее
+### Настройки
 
-Правый клик по иконке в трее открывает меню:
-- **Начать запись** / **Остановить запись**
-- **Редактор текста** — правка и история распознанных текстов
-- **Настройки** — окно настроек приложения
-- **Логи** — просмотр логов работы
-- **Выход**
+Окно настроек доступно через меню в трее.
 
-## Настройки
+- **Lemonade Server** — URL, модель, язык, prompt (подсказка для пунктуации и терминов), температура
+- **Горячие клавиши** — настраиваемые комбинации с модификаторами Alt, Ctrl, Shift, Super
+- **Поведение** — автозапуск, автовставка, консоль, уведомления, логирование, язык интерфейса, размер истории
 
-Окно настроек доступно через меню в трее. Все параметры сохраняются автоматически.
-
-### Lemonade Server
-
-- **URL** — адрес сервера (по умолчанию `http://localhost:8000`)
-- **Модель** — выбор из доступных моделей Whisper (загружаются автоматически)
-- **Язык** — язык распознавания речи
-- **Подсказка (prompt)** — начальный контекст для модели. Помогает с пунктуацией и правильным написанием терминов. Например: *"Привет! Сегодня работаем с Claude Code, GitHub и voice-input."*
-- **Температура** — от 0.0 (строгое распознавание) до 1.0 (более творческое). Рекомендуется 0.2
-
-### Горячие клавиши
-
-Настраиваемые комбинации для записи, остановки и открытия редактора. Поддерживаются модификаторы: `Alt`, `Ctrl`, `Shift`, `Super`/`Win`.
-
-### Поведение
-
-- **Автозапуск** — запуск при входе в систему
-- **Автовставка (Ctrl+V)** — автоматическая вставка текста после распознавания
-- **Показывать консоль** — отображение консольного окна с логами (для отладки)
-- **Звуковое уведомление** — звуковой сигнал после распознавания
-- **Всплывающее уведомление** — toast-уведомление с превью текста
-- **Логирование** — запись подробных логов в файл
-- **Язык интерфейса** — русский / английский
-- **Размер истории** — количество сохраняемых распознанных текстов
-
-## Конфигурация
-
-Конфигурация хранится в JSON-файле:
+### Конфигурация
 
 | ОС | Путь |
 |----|------|
@@ -132,39 +100,146 @@ sudo rpm -i voice-input-go-*.rpm
 | Linux | `~/.config/voice-input-go/config.json` |
 | macOS | `~/Library/Application Support/voice-input-go/config.json` |
 
-## Сборка из исходников
+### Сборка из исходников
 
-### Зависимости
-
-- Go 1.21+
-- GCC (для CGO)
-- PortAudio dev library
-- GTK 3 и AppIndicator (только Linux)
-
-### Windows
-
+**Windows** (требуется MSYS2):
 ```bash
-# Требуется MSYS2 с mingw-w64-x86_64-portaudio
 CGO_LDFLAGS="-static -lportaudio -lole32 -lwinmm -lksuser -lsetupapi -luuid" \
 go build -ldflags="-s -w -extldflags '-static'" -o voice-input-go.exe ./cmd/voice-input-go/
 ```
 
-### Linux
-
+**Linux** (Ubuntu/Debian):
 ```bash
-# Ubuntu/Debian
 sudo apt install portaudio19-dev libayatana-appindicator3-dev libgtk-3-dev
-
 go build -ldflags="-s -w" -o voice-input-go ./cmd/voice-input-go/
 ```
 
-### macOS
-
+**macOS:**
 ```bash
 brew install portaudio
 go build -ldflags="-s -w" -o voice-input-go ./cmd/voice-input-go/
 ```
 
-## Лицензия
+---
+
+## English
+
+Voice input application. Records audio from microphone, transcribes speech via local Whisper AI server, and automatically pastes text into any active application.
+
+Runs entirely locally — your data never leaves your computer.
+
+### Features
+
+- **Voice input** — press a hotkey, dictate, text appears in clipboard
+- **Auto-paste** — optional automatic paste (Ctrl+V) right after transcription
+- **Text editor** — built-in editor for correcting last transcribed text with history
+- **System tray** — runs in background, icon shows current status
+- **GUI settings** — convenient settings window, no manual config editing
+- **Global hotkeys** — start recording, stop, open editor
+- **Notifications** — sound and toast notifications
+- **Bilingual UI** — Russian and English
+- **Autostart** — optional launch at system login
+
+### Requirements
+
+#### Lemonade Server (required)
+
+Voice Input Go uses [Lemonade Server](https://lemonade-server.ai/) for speech recognition. It's a local AI server that runs Whisper models on your machine.
+
+**Installing Lemonade Server:**
+
+1. Download the installer from the [releases page](https://github.com/lemonade-sdk/lemonade/releases)
+2. Install and start Lemonade Server
+3. Make sure the server is available at `http://localhost:8000` (default port)
+4. On first launch, Voice Input Go will offer to select and download a Whisper model
+
+Full setup guide: [lemonade-server.ai/docs/server](https://lemonade-server.ai/docs/server/)
+
+> **AMD Ryzen AI**: If you have a CPU with NPU (e.g. Ryzen AI 9), Lemonade Server automatically uses it for faster transcription.
+
+#### Recommended models
+
+| Model | Size | Quality | Speed |
+|-------|------|---------|-------|
+| Whisper-Small | ~500 MB | Good | Fast |
+| Whisper-Large-v3-Turbo | ~1.6 GB | Excellent | Medium |
+| Whisper-Large-v3 | ~3 GB | Best | Slow |
+
+### Installation
+
+**Windows** — download `voice-input-go-windows-amd64.exe` from the [releases page](https://github.com/Pir0manT/voice-input-go/releases/latest) and run it. Single file, no dependencies.
+
+**Linux (deb):**
+```bash
+sudo dpkg -i voice-input-go_*.deb
+```
+
+**Linux (rpm):**
+```bash
+sudo rpm -i voice-input-go-*.rpm
+```
+
+**macOS (Apple Silicon)** — download the `.dmg`, open it and drag Voice Input to Applications.
+
+> On first launch, macOS will ask for microphone permission.
+
+### Usage
+
+#### Default hotkeys
+
+| Action | Windows/Linux | macOS |
+|--------|---------------|-------|
+| Start recording | `Alt+R` | `Option+R` |
+| Stop + transcribe | `Alt+S` | `Option+S` |
+| Open editor | `Alt+E` | `Option+E` |
+
+#### Workflow
+
+1. Make sure Lemonade Server is running
+2. Launch Voice Input Go — icon appears in system tray
+3. Press `Alt+R` — recording starts (icon turns red)
+4. Speak into microphone
+5. Press `Alt+S` — recording stops, transcription begins (icon turns orange)
+6. Text is copied to clipboard (and auto-pasted if the option is enabled)
+
+### Settings
+
+Settings window is available from the tray menu.
+
+- **Lemonade Server** — URL, model, language, prompt (helps with punctuation and terms), temperature
+- **Hotkeys** — customizable key combinations with Alt, Ctrl, Shift, Super modifiers
+- **Behavior** — autostart, auto-paste, console, notifications, logging, UI language, history size
+
+### Configuration
+
+| OS | Path |
+|----|------|
+| Windows | `%APPDATA%\voice-input-go\config.json` |
+| Linux | `~/.config/voice-input-go/config.json` |
+| macOS | `~/Library/Application Support/voice-input-go/config.json` |
+
+### Building from source
+
+**Windows** (requires MSYS2):
+```bash
+CGO_LDFLAGS="-static -lportaudio -lole32 -lwinmm -lksuser -lsetupapi -luuid" \
+go build -ldflags="-s -w -extldflags '-static'" -o voice-input-go.exe ./cmd/voice-input-go/
+```
+
+**Linux** (Ubuntu/Debian):
+```bash
+sudo apt install portaudio19-dev libayatana-appindicator3-dev libgtk-3-dev
+go build -ldflags="-s -w" -o voice-input-go ./cmd/voice-input-go/
+```
+
+**macOS:**
+```bash
+brew install portaudio
+go build -ldflags="-s -w" -o voice-input-go ./cmd/voice-input-go/
+```
+
+---
+
+## License / Лицензия
 
 MIT
