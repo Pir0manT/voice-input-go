@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -124,13 +125,22 @@ func (r *Recorder) audioCallback(in []float32, out []float32) {
 	r.samplesMu.Unlock()
 }
 
-// Stop останавливает запись и возвращает путь к файлу
-func (r *Recorder) Stop() (string, error) {
+// StopResult результат остановки записи
+type StopResult struct {
+	FilePath       string  // Путь к WAV файлу
+	TrimmedSeconds float64 // Сколько секунд тишины обрезано (0 = ничего не обрезано)
+}
+
+// ErrSilentRecording запись содержит только тишину
+var ErrSilentRecording = fmt.Errorf("silent recording")
+
+// Stop останавливает запись и возвращает результат
+func (r *Recorder) Stop() (*StopResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if !r.recording.Load() {
-		return "", fmt.Errorf("not recording")
+		return nil, fmt.Errorf("not recording")
 	}
 
 	// Сначала сбрасываем флаг — callback перестанет писать в samples
@@ -142,22 +152,38 @@ func (r *Recorder) Stop() (string, error) {
 			// Пытаемся освободить ресурсы даже при ошибке
 			r.stream.Close()
 			portaudio.Terminate()
-			return "", fmt.Errorf("failed to stop stream: %w", err)
+			return nil, fmt.Errorf("failed to stop stream: %w", err)
 		}
 		if err := r.stream.Close(); err != nil {
 			portaudio.Terminate()
-			return "", fmt.Errorf("failed to close stream: %w", err)
+			return nil, fmt.Errorf("failed to close stream: %w", err)
 		}
 		portaudio.Terminate()
+	}
+
+	// Обрезаем тишину в начале и конце записи
+	originalLen := len(r.samples)
+	trimmed := trimSilence(r.samples, r.sampleRate)
+	if len(trimmed) == 0 {
+		return nil, ErrSilentRecording
+	}
+	r.samples = trimmed
+
+	var trimmedSec float64
+	if trimmedCount := originalLen - len(trimmed); trimmedCount > 0 {
+		trimmedSec = float64(trimmedCount) / float64(r.sampleRate)
 	}
 
 	// Сохраняем в WAV файл (callback уже не пишет — samplesMu не нужен)
 	filename, err := r.saveToWAV()
 	if err != nil {
-		return "", fmt.Errorf("failed to save WAV: %w", err)
+		return nil, fmt.Errorf("failed to save WAV: %w", err)
 	}
 
-	return filename, nil
+	return &StopResult{
+		FilePath:       filename,
+		TrimmedSeconds: trimmedSec,
+	}, nil
 }
 
 // saveToWAV сохраняет сэмплы в WAV файл
@@ -267,4 +293,70 @@ func int16ToBytes(n int16) []byte {
 		byte(n),
 		byte(n >> 8),
 	}
+}
+
+// trimSilence обрезает тишину в начале и конце записи.
+// Использует RMS (среднеквадратичное) по окнам ~20ms.
+// Оставляет небольшой запас (tailMs) чтобы не обрезать окончания слов.
+func trimSilence(samples []float32, sampleRate int) []float32 {
+	const (
+		thresholdDB = -40.0 // Порог тишины в dB
+		tailMs      = 200   // Запас после последнего звука (мс)
+		windowMs    = 20    // Размер окна анализа (мс)
+	)
+
+	windowSize := sampleRate * windowMs / 1000 // ~320 сэмплов при 16kHz
+	tailSize := sampleRate * tailMs / 1000     // ~3200 сэмплов при 16kHz
+
+	if len(samples) < windowSize {
+		return samples
+	}
+
+	// Порог RMS из dB: threshold = 10^(dB/20)
+	threshold := float32(math.Pow(10, thresholdDB/20.0)) // ~0.01
+
+	// Ищем первое окно со звуком (с начала)
+	startIdx := 0
+	for i := 0; i+windowSize <= len(samples); i += windowSize {
+		if rmsWindow(samples[i:i+windowSize]) > threshold {
+			// Отступаем назад на одно окно для запаса
+			startIdx = i - windowSize
+			if startIdx < 0 {
+				startIdx = 0
+			}
+			break
+		}
+		// Если дошли до конца — вся запись тихая
+		if i+windowSize >= len(samples) {
+			return nil
+		}
+	}
+
+	// Ищем последнее окно со звуком (с конца)
+	endIdx := len(samples)
+	for i := len(samples) - windowSize; i >= 0; i -= windowSize {
+		if rmsWindow(samples[i:i+windowSize]) > threshold {
+			// Добавляем хвост чтобы не обрезать окончание слова
+			endIdx = i + windowSize + tailSize
+			if endIdx > len(samples) {
+				endIdx = len(samples)
+			}
+			break
+		}
+	}
+
+	if startIdx >= endIdx {
+		return nil
+	}
+
+	return samples[startIdx:endIdx]
+}
+
+// rmsWindow вычисляет RMS (среднеквадратичное) для окна сэмплов
+func rmsWindow(window []float32) float32 {
+	var sum float32
+	for _, s := range window {
+		sum += s * s
+	}
+	return float32(math.Sqrt(float64(sum / float32(len(window)))))
 }

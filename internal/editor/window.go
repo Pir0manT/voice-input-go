@@ -37,13 +37,13 @@ type EditorOutput struct {
 func RunEditorGUI() {
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read stdin: %v\n", err)
+		fmt.Fprintf(os.Stderr, i18n.Get("en").ErrorReadStdin, err)
 		os.Exit(1)
 	}
 
 	var input EditorInput
 	if err := json.Unmarshal(data, &input); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse input JSON: %v\n", err)
+		fmt.Fprintf(os.Stderr, i18n.Get("en").ErrorParseJSON, err)
 		os.Exit(1)
 	}
 

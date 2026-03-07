@@ -82,7 +82,7 @@ func transcribeAndCopy(audioPath string) {
 		logger.Debug(msg.AudioDuration, duration)
 		audioDuration = duration
 	} else {
-		logger.Debug("Failed to get audio duration: %v", err)
+		logger.Debug(msg.ErrorAudioDuration, err)
 	}
 
 	// Проверяем что клиент и конфиг инициализированы
@@ -284,16 +284,21 @@ func main() {
 		},
 		"stop": func() {
 			logger.Debug(msg.StopRecordingFromMenu)
-			filename, err := rec.Stop()
+			result, err := rec.Stop()
 			if err != nil {
 				logger.Error(msg.ErrorStopRecording, err)
 				fmt.Printf(msg.ErrorPrefix, err)
 			} else {
 				tray.SetStatus(tray.StatusProcessing)
-				fmt.Printf(msg.RecordingSaved, filename)
+				fmt.Printf(msg.RecordingSaved, result.FilePath)
+				if result.TrimmedSeconds > 0 {
+					m := i18n.Get(lang)
+					fmt.Printf(m.SilenceTrimmed, result.TrimmedSeconds)
+					logger.Debug(m.SilenceTrimmed, result.TrimmedSeconds)
+				}
 
 				// Запускаем транскрибацию в горутине
-				go transcribeAndCopy(filename)
+				go transcribeAndCopy(result.FilePath)
 			}
 		},
 		"editor": func() {
@@ -363,11 +368,11 @@ func main() {
 		// Обновляем автозапуск
 		if newCfg.Autostart {
 			if err := autostart.Enable(); err != nil {
-				logger.Error("Autostart enable error: %v", err)
+				logger.Error(msg.ErrorAutostartEnable, err)
 			}
 		} else {
 			if err := autostart.Disable(); err != nil {
-				logger.Error("Autostart disable error: %v", err)
+				logger.Error(msg.ErrorAutostartDisable, err)
 			}
 		}
 

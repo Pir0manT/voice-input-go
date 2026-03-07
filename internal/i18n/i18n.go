@@ -266,6 +266,17 @@ type Messages struct {
 	CheckboxAutoPaste     string
 	HintAutoPaste         string
 	SectionBehavior       string
+
+	// Обрезка тишины
+	SilenceTrimmed        string
+	RecordingSilent       string
+
+	// Ошибки (внутренние, для логов)
+	ErrorAudioDuration    string
+	ErrorAutostartEnable  string
+	ErrorAutostartDisable string
+	ErrorReadStdin        string
+	ErrorParseJSON        string
 }
 
 // Get возвращает переводы для указанного языка
@@ -537,6 +548,17 @@ func Get(lang string) *Messages {
 			CheckboxAutoPaste: "Автовставка текста (Ctrl+V)",
 			HintAutoPaste:     "После распознавания текст автоматически вставляется в позицию курсора",
 			SectionBehavior:   "Поведение",
+
+			// Обрезка тишины
+			SilenceTrimmed:  "✂️ Обрезано тишины: %.1f сек\n",
+			RecordingSilent: "Запись содержит только тишину",
+
+			// Ошибки (внутренние, для логов)
+			ErrorAudioDuration:    "Не удалось получить длительность аудио: %v",
+			ErrorAutostartEnable:  "Ошибка включения автозапуска: %v",
+			ErrorAutostartDisable: "Ошибка отключения автозапуска: %v",
+			ErrorReadStdin:        "Ошибка чтения stdin: %v\n",
+			ErrorParseJSON:        "Ошибка разбора JSON: %v\n",
 		}
 
 	case "en":
@@ -805,6 +827,17 @@ func Get(lang string) *Messages {
 			CheckboxAutoPaste: "Auto-paste text (Ctrl+V)",
 			HintAutoPaste:     "After transcription, text is automatically pasted at cursor position",
 			SectionBehavior:   "Behavior",
+
+			// Обрезка тишины
+			SilenceTrimmed:  "✂️ Silence trimmed: %.1f sec\n",
+			RecordingSilent: "Recording contains only silence",
+
+			// Ошибки (внутренние, для логов)
+			ErrorAudioDuration:    "Failed to get audio duration: %v",
+			ErrorAutostartEnable:  "Autostart enable error: %v",
+			ErrorAutostartDisable: "Autostart disable error: %v",
+			ErrorReadStdin:        "Failed to read stdin: %v\n",
+			ErrorParseJSON:        "Failed to parse JSON: %v\n",
 		}
 
 	default:
