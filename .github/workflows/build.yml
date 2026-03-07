@@ -1,0 +1,183 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  APP_NAME: voice-input-go
+
+jobs:
+  # ============================================================
+  # Windows (amd64) — статическая линковка PortAudio, UPX
+  # ============================================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: >-
+            mingw-w64-x86_64-portaudio
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-upx
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          CGO_LDFLAGS="-static -lportaudio -lole32 -lwinmm -lksuser -lsetupapi -luuid" \
+          go build -ldflags="-s -w -extldflags '-static'" \
+            -o $APP_NAME.exe ./cmd/$APP_NAME/
+
+      - name: Compress with UPX
+        shell: msys2 {0}
+        run: upx --best $APP_NAME.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-windows-amd64
+          path: ${{ env.APP_NAME }}.exe
+
+  # ============================================================
+  # Linux (amd64) — динамическая линковка, UPX, deb/rpm
+  # ============================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            portaudio19-dev \
+            libasound2-dev \
+            libayatana-appindicator3-dev \
+            libgtk-3-dev \
+            libgl-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxxf86vm-dev \
+            libxi-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            upx-ucl
+
+      - name: Build
+        run: |
+          go build -ldflags="-s -w" \
+            -o $APP_NAME ./cmd/$APP_NAME/
+
+      - name: Compress with UPX
+        run: upx --best $APP_NAME
+
+      - name: Build deb & rpm packages
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+          VERSION=${GITHUB_REF_NAME#v}
+          if [[ ! "$VERSION" =~ ^[0-9] ]]; then
+            VERSION="0.0.0-dev"
+          fi
+          export VERSION
+
+          nfpm package -p deb -f nfpm.yaml
+          nfpm package -p rpm -f nfpm.yaml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-linux-amd64
+          path: |
+            ${{ env.APP_NAME }}
+            *.deb
+            *.rpm
+
+  # ============================================================
+  # macOS ARM (Apple Silicon)
+  # ============================================================
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install dependencies
+        run: brew install portaudio librsvg
+
+      - name: Build
+        run: |
+          go build -ldflags="-s -w" \
+            -o $APP_NAME ./cmd/$APP_NAME/
+
+      - name: Build .app + .dmg
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          if [[ ! "$VERSION" =~ ^[0-9] ]]; then
+            VERSION="0.0.0-dev"
+          fi
+          chmod +x macos/build-dmg.sh
+          ./macos/build-dmg.sh "$APP_NAME" "$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macos-arm64
+          path: "*.dmg"
+
+  # ============================================================
+  # Release — создаёт GitHub Release при пуше тега v*
+  # ============================================================
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir release
+
+          # Windows
+          cp artifacts/$APP_NAME-windows-amd64/$APP_NAME.exe \
+             release/$APP_NAME-windows-amd64.exe
+
+          # Linux
+          cp artifacts/$APP_NAME-linux-amd64/$APP_NAME \
+             release/$APP_NAME-linux-amd64
+          cp artifacts/$APP_NAME-linux-amd64/*.deb release/ || true
+          cp artifacts/$APP_NAME-linux-amd64/*.rpm release/ || true
+
+          # macOS
+          cp artifacts/$APP_NAME-macos-arm64/*.dmg release/ || true
+
+          ls -lh release/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

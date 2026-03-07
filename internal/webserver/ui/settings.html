@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Messages.SettingsTitle}}</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>{{.Messages.SettingsTitle}}</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="general">{{.Messages.TabGeneral}}</button>
+            <button class="tab-btn" data-tab="notifications">{{.Messages.TabNotifications}}</button>
+            <button class="tab-btn" data-tab="logs">{{.Messages.TabLogs}}</button>
+        </div>
+
+        <div class="tab-content active" id="general">
+            <h2>{{.Messages.SectionHotkeys}}</h2>
+            <div class="form-row-3">
+                <div class="form-group">
+                    <label>{{.Messages.LabelHotkeyStart}}</label>
+                    <input type="text" id="hotkey-start" value="Alt+R">
+                </div>
+                <div class="form-group">
+                    <label>{{.Messages.LabelHotkeyStop}}</label>
+                    <input type="text" id="hotkey-stop" value="Alt+S">
+                </div>
+                <div class="form-group">
+                    <label>{{.Messages.LabelHotkeyEditor}}</label>
+                    <input type="text" id="hotkey-editor" value="Alt+E">
+                </div>
+            </div>
+
+            <h2>{{.Messages.SectionLemonade}}</h2>
+            <div class="form-group">
+                <label>{{.Messages.LabelURL}}</label>
+                <input type="text" id="lemonade-url" value="http://localhost:8000">
+            </div>
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label>{{.Messages.LabelModel}}</label>
+                    <select id="lemonade-model">
+                        <option value="Whisper-Large-v3-Turbo">{{.Messages.ModelWhisperTurbo}}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>{{.Messages.LabelLanguage}}</label>
+                    <select id="lemonade-language">
+                        <option value="ru">{{.Messages.LangRussian}}</option>
+                        <option value="en">{{.Messages.LangEnglish}}</option>
+                    </select>
+                </div>
+            </div>
+
+            <h2>{{.Messages.SectionAutostart}}</h2>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="autostart">
+                <label for="autostart">{{.Messages.CheckboxAutostart}}</label>
+            </div>
+            <p class="hint">{{.Messages.HintAutostart}}</p>
+
+            <h2>{{.Messages.SectionAppLanguage}}</h2>
+            <div class="form-group">
+                <label>{{.Messages.LabelAppLanguage}}</label>
+                <select id="app-language">
+                    <option value="ru">{{.Messages.LangRussian}}</option>
+                    <option value="en">{{.Messages.LangEnglish}}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="tab-content" id="notifications">
+            <h2>{{.Messages.SectionNotifications}}</h2>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="notify-sound" checked>
+                <label for="notify-sound">{{.Messages.CheckboxSound}}</label>
+            </div>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="notify-toast" checked>
+                <label for="notify-toast">{{.Messages.CheckboxToast}}</label>
+            </div>
+        </div>
+
+        <div class="tab-content" id="logs">
+            <h2>{{.Messages.SectionLogs}}</h2>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="logging-enabled" checked>
+                <label for="logging-enabled">{{.Messages.CheckboxLogging}}</label>
+            </div>
+            <div class="form-group">
+                <label>{{.Messages.LabelLoggingLevel}}</label>
+                <select id="logging-level">
+                    <option value="info">INFO</option>
+                    <option value="debug">DEBUG</option>
+                    <option value="warn">WARN</option>
+                    <option value="error">ERROR</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>{{.Messages.LabelLastLogs}}</label>
+                <textarea id="logs-content" rows="10" readonly style="width: 100%; font-family: monospace; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; padding: 8px;"></textarea>
+            </div>
+            <div class="log-actions">
+                <button id="btn-view-logs">{{.Messages.BtnViewLogs}}</button>
+                <button id="btn-clear-logs" class="danger">{{.Messages.BtnClearLogs}}</button>
+                <button id="btn-save-logs">{{.Messages.BtnSaveLogs}}</button>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="btn-save" class="btn-primary">{{.Messages.Save}}</button>
+            <button id="btn-cancel" class="btn-secondary">{{.Messages.Cancel}}</button>
+        </div>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>

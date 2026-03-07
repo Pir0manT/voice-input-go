@@ -1,0 +1,27 @@
+name: voice-input-go
+arch: amd64
+version: ${VERSION}
+maintainer: Pir0manT
+description: Voice input application — records audio, transcribes via local Whisper AI, copies text to clipboard
+homepage: https://github.com/Pir0manT/voice-input
+license: MIT
+
+contents:
+  - src: voice-input-go
+    dst: /usr/local/bin/voice-input-go
+    file_info:
+      mode: 0755
+
+overrides:
+  deb:
+    depends:
+      - libportaudio2
+      - libgtk-3-0
+      - libayatana-appindicator3-1
+      - libasound2
+  rpm:
+    depends:
+      - portaudio
+      - gtk3
+      - libayatana-indicator-gtk3
+      - alsa-lib
