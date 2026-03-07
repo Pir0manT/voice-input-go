@@ -1,6 +1,6 @@
-voice-input-go
-voice-input-go.exe
-voice-input-go-settings.exe
+/voice-input-go
+/voice-input-go.exe
+/voice-input-go-settings.exe
 *.log
 *.wav
 *.dmg
