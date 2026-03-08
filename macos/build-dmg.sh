@@ -89,6 +89,10 @@ else
     echo "WARNING: libportaudio not found, skipping dylib bundling"
 fi
 
+# Re-sign after install_name_tool (invalidates original ad-hoc signature)
+echo "Re-signing app bundle..."
+codesign --force --deep --sign - "${BUNDLE_NAME}"
+
 # Copy icon
 cp /tmp/AppIcon.icns "${BUNDLE_NAME}/Contents/Resources/AppIcon.icns"
 

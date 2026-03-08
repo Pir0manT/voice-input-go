@@ -408,25 +408,29 @@ func main() {
 		settingsMgr.SetConfig(cfg)
 	})
 
-	// Регистрируем хоткеи из конфига
-	if err := hkManager.Register(cfg.Hotkeys.Start, cfg.Hotkeys.Stop, cfg.Hotkeys.Editor,
-		callbacks["start"], callbacks["stop"], callbacks["editor"], lang); err != nil {
-		logger.Error(msg.ErrorHotkeyRegister, err)
-		fmt.Printf(msg.WarningHotkeys, err)
-		fmt.Println(msg.WarningHotkeysDetail)
-	}
+	// Регистрация хоткеев — через OnReady callback трея.
+	// На macOS Carbon API (RegisterEventHotKey) требует работающего NSApplication event loop,
+	// поэтому хоткеи нельзя регистрировать до tray.Start().
+	tray.SetOnReady(func() {
+		if err := hkManager.Register(cfg.Hotkeys.Start, cfg.Hotkeys.Stop, cfg.Hotkeys.Editor,
+			callbacks["start"], callbacks["stop"], callbacks["editor"], lang); err != nil {
+			logger.Error(msg.ErrorHotkeyRegister, err)
+			fmt.Printf(msg.WarningHotkeys, err)
+			fmt.Println(msg.WarningHotkeysDetail)
+		}
 
-	// Запускаем прослушивание хоткеев
-	if err := hkManager.Start(lang); err != nil {
-		logger.Error(msg.ErrorHotkeyListener, err)
-	}
+		if err := hkManager.Start(lang); err != nil {
+			logger.Error(msg.ErrorHotkeyListener, err)
+		}
+
+		fmt.Println(msg.AppStarted)
+		fmt.Printf(msg.LogFile, logPath)
+		fmt.Println(msg.TrayMenu)
+		fmt.Println(msg.PressCtrlC)
+	})
 
 	// Запуск системного трея (блокирующий вызов)
 	logger.Debug(msg.StartingTray)
-	fmt.Println(msg.AppStarted)
-	fmt.Printf(msg.LogFile, logPath)
-	fmt.Println(msg.TrayMenu)
-	fmt.Println(msg.PressCtrlC)
 	fmt.Println(msg.TrayStarted)
 
 	// Запускаем трей (это блокирующий вызов)

@@ -37,6 +37,7 @@ var (
 	onEditorCallback   func()
 	onSettingsCallback func()
 	onLogsCallback     func()
+	onReadyCallback    func()
 )
 
 // Start запускает системный трей
@@ -119,6 +120,15 @@ func Restart(c *config.Config, callbacks map[string]func(), lang string) {
 	mu.Unlock()
 }
 
+// SetOnReady устанавливает callback, который вызывается после инициализации трея.
+// На macOS это единственный безопасный момент для регистрации глобальных хоткеев,
+// т.к. Carbon API требует работающего NSApplication event loop.
+func SetOnReady(fn func()) {
+	mu.Lock()
+	defer mu.Unlock()
+	onReadyCallback = fn
+}
+
 // onReady вызывается когда трей готов
 func onReady() {
 	mu.Lock()
@@ -165,6 +175,14 @@ func onReady() {
 
 	// Обработчики событий
 	go eventLoop()
+
+	// Вызываем onReady callback (регистрация хоткеев и т.д.)
+	mu.Lock()
+	readyCb := onReadyCallback
+	mu.Unlock()
+	if readyCb != nil {
+		go readyCb()
+	}
 }
 
 // eventLoop обрабатывает клики по пунктам меню
