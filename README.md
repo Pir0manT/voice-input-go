@@ -63,7 +63,11 @@ sudo rpm -i voice-input-go-*.rpm
 
 **macOS (Apple Silicon)** — скачайте `.dmg`, откройте и перетащите Voice Input в Applications.
 
-> При первом запуске macOS попросит разрешение на использование микрофона.
+> **Важно:** При первом запуске macOS может показать ошибку «приложение повреждено». Это связано с тем, что приложение не подписано сертификатом Apple Developer. Выполните в терминале:
+> ```bash
+> xattr -cr /Applications/Voice\ Input.app
+> ```
+> После этого приложение запустится нормально. macOS также попросит разрешение на использование микрофона.
 
 ### Использование
 
@@ -181,7 +185,11 @@ sudo rpm -i voice-input-go-*.rpm
 
 **macOS (Apple Silicon)** — download the `.dmg`, open it and drag Voice Input to Applications.
 
-> On first launch, macOS will ask for microphone permission.
+> **Important:** On first launch, macOS may show an error saying the app is "damaged". This happens because the app is not signed with an Apple Developer certificate. Run this in Terminal:
+> ```bash
+> xattr -cr /Applications/Voice\ Input.app
+> ```
+> After that the app will launch normally. macOS will also ask for microphone permission.
 
 ### Usage
 
