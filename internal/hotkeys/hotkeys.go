@@ -2,13 +2,11 @@ package hotkeys
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/Pir0manT/voice-input-go/internal/i18n"
 	"golang.design/x/hotkey"
-	"golang.design/x/hotkey/mainthread"
 )
 
 // Handler функция обработчик горячей клавиши
@@ -220,15 +218,8 @@ func (hk *HotkeyManager) Start(lang string) error {
 	// Создаём канал остановки
 	hk.done = make(chan struct{})
 
-	// На macOS требуется инициализация на главном потоке
-	if runtime.GOOS == "darwin" {
-		mainthread.Init(func() {
-			hk.listenLoop()
-		})
-		return nil
-	}
-
-	// Windows/Linux - запускаем в горутине
+	// Запускаем в горутине. На macOS Carbon events доставляются через
+	// event loop systray (NSApplication), mainthread.Init не нужен.
 	go hk.listenLoop()
 	return nil
 }
