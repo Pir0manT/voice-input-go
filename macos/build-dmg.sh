@@ -65,6 +65,30 @@ mkdir -p "${BUNDLE_NAME}/Contents/Resources"
 cp "$BINARY" "${BUNDLE_NAME}/Contents/MacOS/voice-input-go"
 chmod +x "${BUNDLE_NAME}/Contents/MacOS/voice-input-go"
 
+# --- Bundle dylibs (portaudio) ---
+echo "Bundling dynamic libraries..."
+FRAMEWORKS_DIR="${BUNDLE_NAME}/Contents/Frameworks"
+mkdir -p "$FRAMEWORKS_DIR"
+
+# Find and bundle libportaudio
+PA_DYLIB=$(otool -L "${BUNDLE_NAME}/Contents/MacOS/voice-input-go" | grep portaudio | awk '{print $1}')
+if [ -n "$PA_DYLIB" ] && [ -f "$PA_DYLIB" ]; then
+    cp "$PA_DYLIB" "$FRAMEWORKS_DIR/"
+    PA_BASENAME=$(basename "$PA_DYLIB")
+    chmod 644 "$FRAMEWORKS_DIR/$PA_BASENAME"
+    # Relink binary to use @executable_path/../Frameworks/
+    install_name_tool -change "$PA_DYLIB" \
+        "@executable_path/../Frameworks/$PA_BASENAME" \
+        "${BUNDLE_NAME}/Contents/MacOS/voice-input-go"
+    # Update dylib's own id
+    install_name_tool -id \
+        "@executable_path/../Frameworks/$PA_BASENAME" \
+        "$FRAMEWORKS_DIR/$PA_BASENAME"
+    echo "Bundled: $PA_BASENAME"
+else
+    echo "WARNING: libportaudio not found, skipping dylib bundling"
+fi
+
 # Copy icon
 cp /tmp/AppIcon.icns "${BUNDLE_NAME}/Contents/Resources/AppIcon.icns"
 
