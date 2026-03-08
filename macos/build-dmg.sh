@@ -89,15 +89,16 @@ else
     echo "WARNING: libportaudio not found, skipping dylib bundling"
 fi
 
-# Re-sign after install_name_tool (invalidates original ad-hoc signature)
-echo "Re-signing app bundle..."
-codesign --force --deep --sign - "${BUNDLE_NAME}"
-
 # Copy icon
 cp /tmp/AppIcon.icns "${BUNDLE_NAME}/Contents/Resources/AppIcon.icns"
 
 # Generate Info.plist with version
 sed "s/\${VERSION}/${VERSION}/g" "${SCRIPT_DIR}/Info.plist" > "${BUNDLE_NAME}/Contents/Info.plist"
+
+# Re-sign after install_name_tool (invalidates original ad-hoc signature)
+# Must be AFTER Info.plist and all resources are in place
+echo "Re-signing app bundle..."
+codesign --force --deep --sign - "${BUNDLE_NAME}"
 
 echo "Bundle created: ${BUNDLE_NAME}"
 
