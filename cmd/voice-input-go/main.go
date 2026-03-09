@@ -315,14 +315,15 @@ func main() {
 			logger.Debug(msg.StopRecordingFromMenu)
 			result, err := rec.Stop()
 
-			// Диагностика аудио (выводим всегда, даже при ошибке)
+			// Диагностика аудио (только в debug-лог)
 			if result != nil {
 				m := i18n.Get(lang)
 				origDur := float64(result.OriginalSamples) / 16000.0
-				fmt.Printf(m.AudioStats, origDur, result.OriginalSamples, result.PeakLevel, result.RMSLevel)
 				logger.Debug(m.AudioStats, origDur, result.OriginalSamples, result.PeakLevel, result.RMSLevel)
+				if result.InputDevice != "" {
+					logger.Debug("Input device: %s", result.InputDevice)
+				}
 				if result.PeakLevel == 0 {
-					fmt.Println(m.AudioSilentWarning)
 					logger.Error(m.AudioSilentWarning)
 				}
 			}

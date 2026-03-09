@@ -14,16 +14,16 @@ import (
 
 // Recorder аудио рекордер
 type Recorder struct {
-	mu            sync.Mutex
-	samplesMu     sync.Mutex // отдельный mutex для samples — используется в audioCallback
-	recording     atomic.Bool // атомарный флаг для безопасного чтения из callback
-	stream        *portaudio.Stream
-	samples       []float32
-	sampleRate    int
-	channels      int
-	startTime     time.Time
-	language      string // Язык для сообщений
-	callbackCount atomic.Int64 // счётчик вызовов callback (для диагностики)
+	mu              sync.Mutex
+	samplesMu       sync.Mutex  // отдельный mutex для samples — используется в audioCallback
+	recording       atomic.Bool // атомарный флаг для безопасного чтения из callback
+	stream          *portaudio.Stream
+	samples         []float32
+	sampleRate      int
+	channels        int
+	startTime       time.Time
+	language        string // Язык для сообщений
+	inputDeviceName string // Имя устройства ввода (для логов)
 }
 
 // Config конфигурация рекордера
@@ -81,13 +81,10 @@ func (r *Recorder) Start() error {
 		return fmt.Errorf("failed to initialize portaudio: %w", err)
 	}
 
-	// Логируем информацию о дефолтном устройстве ввода
+	// Логируем дефолтное устройство ввода (debug)
 	if hostInfo, err := portaudio.DefaultHostApi(); err == nil {
 		if dev := hostInfo.DefaultInputDevice; dev != nil {
-			fmt.Printf("🎙️ Микрофон: %s (каналов: %d, частота: %.0f Гц)\n",
-				dev.Name, dev.MaxInputChannels, dev.DefaultSampleRate)
-		} else {
-			fmt.Println("⚠️ Дефолтное устройство ввода не найдено!")
+			r.inputDeviceName = dev.Name
 		}
 	}
 
@@ -118,7 +115,6 @@ func (r *Recorder) Start() error {
 	}
 
 	r.recording.Store(true)
-	r.callbackCount.Store(0)
 	r.startTime = time.Now()
 
 	return nil
@@ -130,19 +126,6 @@ func (r *Recorder) Start() error {
 func (r *Recorder) audioCallback(in []float32, out []float32) {
 	if !r.recording.Load() {
 		return
-	}
-
-	// Логируем первый callback для диагностики
-	count := r.callbackCount.Add(1)
-	if count == 1 {
-		hasData := false
-		for _, s := range in {
-			if s != 0 {
-				hasData = true
-				break
-			}
-		}
-		fmt.Printf("🔊 Callback #1: буфер %d сэмплов, данные: %v\n", len(in), hasData)
 	}
 
 	r.samplesMu.Lock()
@@ -157,6 +140,7 @@ type StopResult struct {
 	OriginalSamples int     // Количество сэмплов до обрезки
 	PeakLevel       float32 // Пиковый уровень (0.0 - 1.0)
 	RMSLevel        float32 // Средний уровень RMS (0.0 - 1.0)
+	InputDevice     string  // Имя устройства ввода
 }
 
 // ErrSilentRecording запись содержит только тишину
@@ -200,6 +184,7 @@ func (r *Recorder) Stop() (*StopResult, error) {
 			OriginalSamples: originalLen,
 			PeakLevel:       peak,
 			RMSLevel:        rms,
+			InputDevice:     r.inputDeviceName,
 		}, ErrSilentRecording
 	}
 	r.samples = trimmed
@@ -221,6 +206,7 @@ func (r *Recorder) Stop() (*StopResult, error) {
 		OriginalSamples: originalLen,
 		PeakLevel:       peak,
 		RMSLevel:        rms,
+		InputDevice:     r.inputDeviceName,
 	}, nil
 }
 
