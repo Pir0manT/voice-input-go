@@ -314,9 +314,23 @@ func main() {
 		"stop": func() {
 			logger.Debug(msg.StopRecordingFromMenu)
 			result, err := rec.Stop()
+
+			// Диагностика аудио (выводим всегда, даже при ошибке)
+			if result != nil {
+				m := i18n.Get(lang)
+				origDur := float64(result.OriginalSamples) / 16000.0
+				fmt.Printf(m.AudioStats, origDur, result.OriginalSamples, result.PeakLevel, result.RMSLevel)
+				logger.Debug(m.AudioStats, origDur, result.OriginalSamples, result.PeakLevel, result.RMSLevel)
+				if result.PeakLevel == 0 {
+					fmt.Println(m.AudioSilentWarning)
+					logger.Error(m.AudioSilentWarning)
+				}
+			}
+
 			if err != nil {
 				logger.Error(msg.ErrorStopRecording, err)
 				fmt.Printf(msg.ErrorPrefix, err)
+				tray.SetStatus(tray.StatusIdle)
 			} else {
 				tray.SetStatus(tray.StatusProcessing)
 				fmt.Printf(msg.RecordingSaved, result.FilePath)

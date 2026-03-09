@@ -267,9 +267,11 @@ type Messages struct {
 	HintAutoPaste         string
 	SectionBehavior       string
 
-	// Обрезка тишины
+	// Обрезка тишины и диагностика аудио
 	SilenceTrimmed        string
 	RecordingSilent       string
+	AudioStats            string
+	AudioSilentWarning    string
 
 	// Бэкенд транскрибации
 	SectionBackend        string
@@ -570,9 +572,11 @@ func Get(lang string) *Messages {
 			HintAutoPaste:     "После распознавания текст автоматически вставляется в позицию курсора",
 			SectionBehavior:   "Поведение",
 
-			// Обрезка тишины
-			SilenceTrimmed:  "✂️ Обрезано тишины: %.1f сек\n",
-			RecordingSilent: "Запись содержит только тишину",
+			// Обрезка тишины и диагностика аудио
+			SilenceTrimmed:     "✂️ Обрезано тишины: %.1f сек\n",
+			RecordingSilent:    "Запись содержит только тишину",
+			AudioStats:         "🎙️ Аудио: %.1f сек, %d сэмплов, пик: %.4f, RMS: %.4f\n",
+			AudioSilentWarning: "⚠️ Микрофон не захватывает звук (пик=0). Проверьте разрешение микрофона в настройках ОС.",
 
 			// Бэкенд транскрибации
 			SectionBackend:        "Бэкенд транскрибации",
@@ -870,9 +874,11 @@ func Get(lang string) *Messages {
 			HintAutoPaste:     "After transcription, text is automatically pasted at cursor position",
 			SectionBehavior:   "Behavior",
 
-			// Обрезка тишины
-			SilenceTrimmed:  "✂️ Silence trimmed: %.1f sec\n",
-			RecordingSilent: "Recording contains only silence",
+			// Обрезка тишины и диагностика аудио
+			SilenceTrimmed:     "✂️ Silence trimmed: %.1f sec\n",
+			RecordingSilent:    "Recording contains only silence",
+			AudioStats:         "🎙️ Audio: %.1f sec, %d samples, peak: %.4f, RMS: %.4f\n",
+			AudioSilentWarning: "⚠️ Microphone not capturing audio (peak=0). Check microphone permissions in OS settings.",
 
 			// Бэкенд транскрибации
 			SectionBackend:        "Transcription Backend",

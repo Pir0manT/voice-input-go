@@ -14,15 +14,16 @@ import (
 
 // Recorder аудио рекордер
 type Recorder struct {
-	mu          sync.Mutex
-	samplesMu   sync.Mutex // отдельный mutex для samples — используется в audioCallback
-	recording   atomic.Bool // атомарный флаг для безопасного чтения из callback
-	stream      *portaudio.Stream
-	samples     []float32
-	sampleRate  int
-	channels    int
-	startTime   time.Time
-	language    string // Язык для сообщений
+	mu            sync.Mutex
+	samplesMu     sync.Mutex // отдельный mutex для samples — используется в audioCallback
+	recording     atomic.Bool // атомарный флаг для безопасного чтения из callback
+	stream        *portaudio.Stream
+	samples       []float32
+	sampleRate    int
+	channels      int
+	startTime     time.Time
+	language      string // Язык для сообщений
+	callbackCount atomic.Int64 // счётчик вызовов callback (для диагностики)
 }
 
 // Config конфигурация рекордера
@@ -80,6 +81,16 @@ func (r *Recorder) Start() error {
 		return fmt.Errorf("failed to initialize portaudio: %w", err)
 	}
 
+	// Логируем информацию о дефолтном устройстве ввода
+	if hostInfo, err := portaudio.DefaultHostApi(); err == nil {
+		if dev := hostInfo.DefaultInputDevice; dev != nil {
+			fmt.Printf("🎙️ Микрофон: %s (каналов: %d, частота: %.0f Гц)\n",
+				dev.Name, dev.MaxInputChannels, dev.DefaultSampleRate)
+		} else {
+			fmt.Println("⚠️ Дефолтное устройство ввода не найдено!")
+		}
+	}
+
 	// Очищаем предыдущие сэмплы
 	r.samplesMu.Lock()
 	r.samples = make([]float32, 0)
@@ -107,6 +118,7 @@ func (r *Recorder) Start() error {
 	}
 
 	r.recording.Store(true)
+	r.callbackCount.Store(0)
 	r.startTime = time.Now()
 
 	return nil
@@ -120,6 +132,19 @@ func (r *Recorder) audioCallback(in []float32, out []float32) {
 		return
 	}
 
+	// Логируем первый callback для диагностики
+	count := r.callbackCount.Add(1)
+	if count == 1 {
+		hasData := false
+		for _, s := range in {
+			if s != 0 {
+				hasData = true
+				break
+			}
+		}
+		fmt.Printf("🔊 Callback #1: буфер %d сэмплов, данные: %v\n", len(in), hasData)
+	}
+
 	r.samplesMu.Lock()
 	r.samples = append(r.samples, in...)
 	r.samplesMu.Unlock()
@@ -127,8 +152,11 @@ func (r *Recorder) audioCallback(in []float32, out []float32) {
 
 // StopResult результат остановки записи
 type StopResult struct {
-	FilePath       string  // Путь к WAV файлу
-	TrimmedSeconds float64 // Сколько секунд тишины обрезано (0 = ничего не обрезано)
+	FilePath        string  // Путь к WAV файлу
+	TrimmedSeconds  float64 // Сколько секунд тишины обрезано (0 = ничего не обрезано)
+	OriginalSamples int     // Количество сэмплов до обрезки
+	PeakLevel       float32 // Пиковый уровень (0.0 - 1.0)
+	RMSLevel        float32 // Средний уровень RMS (0.0 - 1.0)
 }
 
 // ErrSilentRecording запись содержит только тишину
@@ -161,11 +189,18 @@ func (r *Recorder) Stop() (*StopResult, error) {
 		portaudio.Terminate()
 	}
 
-	// Обрезаем тишину в начале и конце записи
+	// Диагностика аудио до обрезки
 	originalLen := len(r.samples)
+	peak, rms := audioStats(r.samples)
+
+	// Обрезаем тишину в начале и конце записи
 	trimmed := trimSilence(r.samples, r.sampleRate)
 	if len(trimmed) == 0 {
-		return nil, ErrSilentRecording
+		return &StopResult{
+			OriginalSamples: originalLen,
+			PeakLevel:       peak,
+			RMSLevel:        rms,
+		}, ErrSilentRecording
 	}
 	r.samples = trimmed
 
@@ -181,8 +216,11 @@ func (r *Recorder) Stop() (*StopResult, error) {
 	}
 
 	return &StopResult{
-		FilePath:       filename,
-		TrimmedSeconds: trimmedSec,
+		FilePath:        filename,
+		TrimmedSeconds:  trimmedSec,
+		OriginalSamples: originalLen,
+		PeakLevel:       peak,
+		RMSLevel:        rms,
 	}, nil
 }
 
@@ -293,6 +331,26 @@ func int16ToBytes(n int16) []byte {
 		byte(n),
 		byte(n >> 8),
 	}
+}
+
+// audioStats возвращает пиковый уровень и RMS всей записи
+func audioStats(samples []float32) (peak float32, rms float32) {
+	if len(samples) == 0 {
+		return 0, 0
+	}
+	var sum float64
+	for _, s := range samples {
+		abs := s
+		if abs < 0 {
+			abs = -abs
+		}
+		if abs > peak {
+			peak = abs
+		}
+		sum += float64(s) * float64(s)
+	}
+	rms = float32(math.Sqrt(sum / float64(len(samples))))
+	return
 }
 
 // trimSilence обрезает тишину в начале и конце записи.
