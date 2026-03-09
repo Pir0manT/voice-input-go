@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -56,6 +58,19 @@ func RunSettingsGUI() {
 	a := app.New()
 	w := a.NewWindow(msg.SettingsTitle)
 	w.Resize(fyne.NewSize(600, 580))
+
+	// === Выбор бэкенда ===
+	backendOptions := []string{msg.BackendLemonade, msg.BackendWhisperAPI}
+	backendValues := []string{"lemonade", "whisper-api"}
+	currentBackendDisplay := msg.BackendLemonade
+	for i, v := range backendValues {
+		if v == cfg.Backend {
+			currentBackendDisplay = backendOptions[i]
+			break
+		}
+	}
+	backendSelect := widget.NewSelect(backendOptions, nil)
+	backendSelect.SetSelected(currentBackendDisplay)
 
 	// === Вкладка "Основные" ===
 
@@ -366,9 +381,17 @@ func RunSettingsGUI() {
 		),
 	)
 
+	backendSection := container.NewVBox(
+		widget.NewLabelWithStyle(msg.SectionBackend, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.New(layout.NewFormLayout(),
+			widget.NewLabel(msg.LabelBackend), backendSelect,
+		),
+		widget.NewSeparator(),
+	)
+
 	generalTab := container.NewVBox(
 		hotkeysSection,
-		lemonadeSection,
+		backendSection,
 		autostartSection,
 		miscSection,
 	)
@@ -502,9 +525,61 @@ func RunSettingsGUI() {
 		logEntry,   // center
 	)
 
+	// === Вкладка "Whisper API" ===
+	whisperURLEntry := widget.NewEntry()
+	whisperURLEntry.SetText(cfg.WhisperAPI.URL)
+	whisperURLEntry.SetPlaceHolder(msg.WhisperAPIHintURL)
+
+	whisperLangDisplayNames := []string{msg.LangRussian, msg.LangEnglish}
+	whisperLangValues := []string{"ru", "en"}
+	currentWhisperLangDisplay := msg.LangRussian
+	for i, v := range whisperLangValues {
+		if v == cfg.WhisperAPI.Language {
+			currentWhisperLangDisplay = whisperLangDisplayNames[i]
+			break
+		}
+	}
+	whisperLangSelect := widget.NewSelect(whisperLangDisplayNames, nil)
+	whisperLangSelect.SetSelected(currentWhisperLangDisplay)
+
+	whisperPromptEntry := widget.NewMultiLineEntry()
+	whisperPromptEntry.SetText(cfg.WhisperAPI.Prompt)
+	whisperPromptEntry.SetPlaceHolder(msg.HintPrompt)
+	whisperPromptEntry.SetMinRowsVisible(2)
+
+	whisperStatus := widget.NewLabel("")
+	whisperCheckBtn := widget.NewButton(msg.WhisperAPICheckBtn, func() {
+		whisperStatus.SetText(msg.WhisperAPIStatus)
+		go func() {
+			client := &http.Client{Timeout: 10 * time.Second}
+			resp, err := client.Get(whisperURLEntry.Text + "/")
+			if err != nil {
+				errText := fmt.Sprintf(msg.WhisperAPIStatusError, err)
+				fyne.Do(func() { whisperStatus.SetText(errText) })
+				return
+			}
+			resp.Body.Close()
+			fyne.Do(func() { whisperStatus.SetText(msg.WhisperAPIStatusOK) })
+		}()
+	})
+
+	whisperAPITab := container.NewVBox(
+		widget.NewLabelWithStyle(msg.SectionWhisperAPI, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.New(layout.NewFormLayout(),
+			widget.NewLabel(msg.LabelURL), whisperURLEntry,
+			widget.NewLabel(msg.LabelLanguage), whisperLangSelect,
+		),
+		widget.NewLabel(msg.LabelPrompt),
+		whisperPromptEntry,
+		widget.NewSeparator(),
+		container.NewHBox(whisperCheckBtn, whisperStatus),
+	)
+
 	// === Табы ===
 	tabs := container.NewAppTabs(
 		container.NewTabItem(msg.TabGeneral, generalTab),
+		container.NewTabItem(msg.SectionLemonade, container.NewVScroll(lemonadeSection)),
+		container.NewTabItem(msg.TabWhisperAPI, whisperAPITab),
 		container.NewTabItem(msg.TabNotifications, notifTab),
 		container.NewTabItem(msg.TabLogs, logsTab),
 	)
@@ -538,12 +613,18 @@ func RunSettingsGUI() {
 				Stop:   ComboToConfig(hotkeyStop.Text),
 				Editor: ComboToConfig(hotkeyEditor.Text),
 			},
+			Backend: langDisplayToValue(backendSelect.Selected, backendOptions, backendValues),
 			Lemonade: config.LemonadeConfig{
 				URL:         urlEntry.Text,
 				Model:       selectedModel,
 				Language:    langDisplayToValue(lemonLangSelect.Selected, langDisplayNames, langValues),
 				Prompt:      promptEntry.Text,
 				Temperature: parseTemperature(tempEntry.Text),
+			},
+			WhisperAPI: config.WhisperAPIConfig{
+				URL:      whisperURLEntry.Text,
+				Language: langDisplayToValue(whisperLangSelect.Selected, whisperLangDisplayNames, whisperLangValues),
+				Prompt:   whisperPromptEntry.Text,
 			},
 			Notifications: config.NotificationsConfig{
 				Sound: soundCheck.Checked,

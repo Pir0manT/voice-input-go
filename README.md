@@ -24,11 +24,13 @@
 
 ### Требования
 
-#### Lemonade Server (обязательно)
+Для распознавания речи нужен один из двух бэкендов (выбирается в настройках):
 
-Voice Input Go использует [Lemonade Server](https://lemonade-server.ai/) для распознавания речи. Это локальный AI-сервер, который запускает модели Whisper на вашем компьютере.
+#### Бэкенд 1: Lemonade Server (локальный)
 
-**Установка Lemonade Server:**
+[Lemonade Server](https://lemonade-server.ai/) — локальный AI-сервер, который запускает модели Whisper на вашем компьютере. Рекомендуется для работы без сети.
+
+**Установка:**
 
 1. Скачайте установщик со [страницы релизов](https://github.com/lemonade-sdk/lemonade/releases)
 2. Установите и запустите Lemonade Server
@@ -39,13 +41,38 @@ Voice Input Go использует [Lemonade Server](https://lemonade-server.ai
 
 > **AMD Ryzen AI**: Если у вас процессор с NPU (например, Ryzen AI 9), Lemonade Server автоматически использует его для ускорения распознавания.
 
-#### Рекомендуемые модели
+**Рекомендуемые модели:**
 
 | Модель | Размер | Качество | Скорость |
 |--------|--------|----------|----------|
 | Whisper-Small | ~500 MB | Хорошее | Быстрая |
 | Whisper-Large-v3-Turbo | ~1.6 GB | Отличное | Средняя |
 | Whisper-Large-v3 | ~3 GB | Максимальное | Медленная |
+
+#### Бэкенд 2: Whisper API (внешний сервер)
+
+Внешний Whisper-совместимый сервер по HTTP. Поддерживает [whisper-asr-webservice](https://github.com/ahmetoner/whisper-asr-webservice) и аналогичные реализации с эндпоинтом `POST /asr`.
+
+Подходит, если:
+- У вас есть мощный сервер в сети (NAS, выделенный GPU-сервер)
+- Вы используете Docker с Whisper
+- Нужна модель large-v3 без локальных ресурсов
+
+**Пример запуска через Docker:**
+
+```bash
+docker run -d -p 9000:9000 -e ASR_MODEL=large-v3 onerahmet/openai-whisper-asr-webservice:latest
+```
+
+**Настройка в Voice Input Go:**
+
+1. Откройте настройки (меню трея)
+2. На вкладке "Основные" выберите бэкенд: **Whisper API (внешний сервер)**
+3. На вкладке "Whisper API" укажите URL сервера (например `http://192.168.1.50:9000`)
+4. Нажмите "Проверить" для проверки доступности
+5. Выберите язык и при необходимости укажите подсказку (initial_prompt)
+
+> **Переключение бэкендов:** Выбор бэкенда на вкладке "Основные" определяет, какой сервер используется для транскрибации. Одновременно работает только один бэкенд.
 
 ### Установка
 
@@ -90,11 +117,12 @@ sudo rpm -i voice-input-go-*.rpm
 
 ### Настройки
 
-Окно настроек доступно через меню в трее.
+Окно настроек доступно через меню в трее. Четыре вкладки:
 
-- **Lemonade Server** — URL, модель, язык, prompt (подсказка для пунктуации и терминов), температура
-- **Горячие клавиши** — настраиваемые комбинации с модификаторами Alt, Ctrl, Shift, Super
-- **Поведение** — автозапуск, автовставка, консоль, уведомления, логирование, язык интерфейса, размер истории
+- **Основные** — горячие клавиши, выбор бэкенда (Lemonade/Whisper API), автозапуск, автовставка, консоль, язык, история
+- **Lemonade Server** — URL, модель (с установкой), язык, prompt, температура
+- **Whisper API** — URL внешнего сервера, язык, prompt, проверка доступности
+- **Уведомления** — звук, toast-уведомления, логирование
 
 ### Конфигурация
 
@@ -146,11 +174,13 @@ Runs entirely locally — your data never leaves your computer.
 
 ### Requirements
 
-#### Lemonade Server (required)
+One of two transcription backends is required (selectable in settings):
 
-Voice Input Go uses [Lemonade Server](https://lemonade-server.ai/) for speech recognition. It's a local AI server that runs Whisper models on your machine.
+#### Backend 1: Lemonade Server (local)
 
-**Installing Lemonade Server:**
+[Lemonade Server](https://lemonade-server.ai/) — a local AI server that runs Whisper models on your machine. Recommended for offline use.
+
+**Installation:**
 
 1. Download the installer from the [releases page](https://github.com/lemonade-sdk/lemonade/releases)
 2. Install and start Lemonade Server
@@ -161,13 +191,38 @@ Full setup guide: [lemonade-server.ai/docs/server](https://lemonade-server.ai/do
 
 > **AMD Ryzen AI**: If you have a CPU with NPU (e.g. Ryzen AI 9), Lemonade Server automatically uses it for faster transcription.
 
-#### Recommended models
+**Recommended models:**
 
 | Model | Size | Quality | Speed |
 |-------|------|---------|-------|
 | Whisper-Small | ~500 MB | Good | Fast |
 | Whisper-Large-v3-Turbo | ~1.6 GB | Excellent | Medium |
 | Whisper-Large-v3 | ~3 GB | Best | Slow |
+
+#### Backend 2: Whisper API (external server)
+
+External Whisper-compatible HTTP server. Supports [whisper-asr-webservice](https://github.com/ahmetoner/whisper-asr-webservice) and similar implementations with `POST /asr` endpoint.
+
+Use this if:
+- You have a powerful server on your network (NAS, dedicated GPU server)
+- You're running Whisper in Docker
+- You need large-v3 without local resources
+
+**Example Docker setup:**
+
+```bash
+docker run -d -p 9000:9000 -e ASR_MODEL=large-v3 onerahmet/openai-whisper-asr-webservice:latest
+```
+
+**Configuration in Voice Input Go:**
+
+1. Open settings (tray menu)
+2. On "General" tab, select backend: **Whisper API (external server)**
+3. On "Whisper API" tab, enter server URL (e.g. `http://192.168.1.50:9000`)
+4. Click "Check" to verify connectivity
+5. Select language and optionally set a prompt (initial_prompt)
+
+> **Backend switching:** The backend selection on the "General" tab determines which server is used for transcription. Only one backend is active at a time.
 
 ### Installation
 
@@ -212,11 +267,12 @@ sudo rpm -i voice-input-go-*.rpm
 
 ### Settings
 
-Settings window is available from the tray menu.
+Settings window is available from the tray menu. Four tabs:
 
-- **Lemonade Server** — URL, model, language, prompt (helps with punctuation and terms), temperature
-- **Hotkeys** — customizable key combinations with Alt, Ctrl, Shift, Super modifiers
-- **Behavior** — autostart, auto-paste, console, notifications, logging, UI language, history size
+- **General** — hotkeys, backend selection (Lemonade/Whisper API), autostart, auto-paste, console, language, history
+- **Lemonade Server** — URL, model (with installation), language, prompt, temperature
+- **Whisper API** — external server URL, language, prompt, connectivity check
+- **Notifications** — sound, toast notifications, logging
 
 ### Configuration
 

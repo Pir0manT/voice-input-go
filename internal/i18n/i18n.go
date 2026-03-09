@@ -271,6 +271,27 @@ type Messages struct {
 	SilenceTrimmed        string
 	RecordingSilent       string
 
+	// Бэкенд транскрибации
+	SectionBackend        string
+	LabelBackend          string
+	BackendLemonade       string
+	BackendWhisperAPI     string
+	HintBackendLemonade   string
+	HintBackendWhisperAPI string
+
+	// Whisper API
+	TabWhisperAPI         string
+	SectionWhisperAPI     string
+	WhisperAPIHintURL     string
+	WhisperAPIStatus      string
+	WhisperAPIStatusOK    string
+	WhisperAPIStatusError string
+	WhisperAPICheckBtn    string
+	WhisperAPINotInit     string
+	BackendInfo           string
+	ConfigWhisperAPI      string
+	ConfigBackend         string
+
 	// Ошибки (внутренние, для логов)
 	ErrorAudioDuration    string
 	ErrorAutostartEnable  string
@@ -553,6 +574,27 @@ func Get(lang string) *Messages {
 			SilenceTrimmed:  "✂️ Обрезано тишины: %.1f сек\n",
 			RecordingSilent: "Запись содержит только тишину",
 
+			// Бэкенд транскрибации
+			SectionBackend:        "Бэкенд транскрибации",
+			LabelBackend:          "Бэкенд:",
+			BackendLemonade:       "Lemonade Server (локальный)",
+			BackendWhisperAPI:     "Whisper API (внешний сервер)",
+			HintBackendLemonade:   "Локальный AI-сервер с управлением моделями",
+			HintBackendWhisperAPI: "Внешний Whisper сервер (Docker, сеть)",
+
+			// Whisper API
+			TabWhisperAPI:         "Whisper API",
+			SectionWhisperAPI:     "Whisper API",
+			WhisperAPIHintURL:     "Адрес сервера, например http://192.168.1.50:9000",
+			WhisperAPIStatus:      "Статус: проверка...",
+			WhisperAPIStatusOK:    "Сервер доступен",
+			WhisperAPIStatusError: "Сервер недоступен: %v",
+			WhisperAPICheckBtn:    "Проверить",
+			WhisperAPINotInit:     "Whisper API клиент не инициализирован!",
+			BackendInfo:           "Бэкенд: %s",
+			ConfigWhisperAPI:      "   🌐 Whisper API: URL=%s, Language=%s",
+			ConfigBackend:         "   🔀 Бэкенд: %s",
+
 			// Ошибки (внутренние, для логов)
 			ErrorAudioDuration:    "Не удалось получить длительность аудио: %v",
 			ErrorAutostartEnable:  "Ошибка включения автозапуска: %v",
@@ -831,6 +873,27 @@ func Get(lang string) *Messages {
 			// Обрезка тишины
 			SilenceTrimmed:  "✂️ Silence trimmed: %.1f sec\n",
 			RecordingSilent: "Recording contains only silence",
+
+			// Бэкенд транскрибации
+			SectionBackend:        "Transcription Backend",
+			LabelBackend:          "Backend:",
+			BackendLemonade:       "Lemonade Server (local)",
+			BackendWhisperAPI:     "Whisper API (external server)",
+			HintBackendLemonade:   "Local AI server with model management",
+			HintBackendWhisperAPI: "External Whisper server (Docker, network)",
+
+			// Whisper API
+			TabWhisperAPI:         "Whisper API",
+			SectionWhisperAPI:     "Whisper API",
+			WhisperAPIHintURL:     "Server address, e.g. http://192.168.1.50:9000",
+			WhisperAPIStatus:      "Status: checking...",
+			WhisperAPIStatusOK:    "Server available",
+			WhisperAPIStatusError: "Server unavailable: %v",
+			WhisperAPICheckBtn:    "Check",
+			WhisperAPINotInit:     "Whisper API client not initialized!",
+			BackendInfo:           "Backend: %s",
+			ConfigWhisperAPI:      "   🌐 Whisper API: URL=%s, Language=%s",
+			ConfigBackend:         "   🔀 Backend: %s",
 
 			// Ошибки (внутренние, для логов)
 			ErrorAudioDuration:    "Failed to get audio duration: %v",

@@ -7,10 +7,18 @@ import (
 	"path/filepath"
 )
 
+// Backend тип бэкенда транскрибации
+const (
+	BackendLemonade  = "lemonade"
+	BackendWhisperAPI = "whisper-api"
+)
+
 // Config структура конфигурации приложения
 type Config struct {
 	Hotkeys       HotkeysConfig       `json:"hotkeys"`
+	Backend       string              `json:"backend"`       // "lemonade" или "whisper-api"
 	Lemonade      LemonadeConfig      `json:"lemonade"`
+	WhisperAPI    WhisperAPIConfig    `json:"whisperApi"`
 	Notifications NotificationsConfig `json:"notifications"`
 	Autostart     bool                `json:"autostart"`
 	AutoPaste     bool                `json:"autoPaste"`
@@ -36,6 +44,13 @@ type LemonadeConfig struct {
 	Temperature float64 `json:"temperature"`
 }
 
+// WhisperAPIConfig конфигурация внешнего Whisper API (whisper-asr-webservice и совместимые)
+type WhisperAPIConfig struct {
+	URL      string `json:"url"`      // Базовый URL (например http://192.168.1.50:9000)
+	Language string `json:"language"` // Код языка (ru, en, de...) — пустой = автоопределение
+	Prompt   string `json:"prompt"`   // initial_prompt — подсказка для контекста
+}
+
 // NotificationsConfig конфигурация уведомлений
 type NotificationsConfig struct {
 	Sound bool `json:"sound"`
@@ -56,12 +71,18 @@ func Default() *Config {
 			Stop:   "alt+s",
 			Editor: "alt+e",
 		},
+		Backend: BackendLemonade,
 		Lemonade: LemonadeConfig{
 			URL:         "http://localhost:8000",
 			Model:       "Whisper-Large-v3-Turbo",
 			Language:    "ru",
 			Prompt:      "Привет! Сегодня работаем с Claude Code, GitHub и voice-input. Используем Go, Fyne, PortAudio. Настройки хранятся в AppData. Точки, запятые — всё на месте.",
 			Temperature: 0.2,
+		},
+		WhisperAPI: WhisperAPIConfig{
+			URL:      "http://localhost:9000",
+			Language: "ru",
+			Prompt:   "",
 		},
 		Notifications: NotificationsConfig{
 			Sound: true,
@@ -105,6 +126,11 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	// Нормализация: если Backend не задан, ставим lemonade
+	if cfg.Backend == "" {
+		cfg.Backend = BackendLemonade
 	}
 
 	// Нормализация: если HistorySize не задан, ставим дефолт

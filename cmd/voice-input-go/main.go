@@ -20,12 +20,15 @@ import (
 	"github.com/Pir0manT/voice-input-go/internal/recorder"
 	"github.com/Pir0manT/voice-input-go/internal/settings"
 	"github.com/Pir0manT/voice-input-go/internal/singleton"
+	"github.com/Pir0manT/voice-input-go/internal/transcriber"
 	"github.com/Pir0manT/voice-input-go/internal/tray"
+	"github.com/Pir0manT/voice-input-go/internal/whisper"
 )
 
 var (
 	rec  *recorder.Recorder
-	lmn  *lemonade.Client
+	lmn  *lemonade.Client          // Lemonade клиент (для управления моделями)
+	tr   transcriber.Transcriber    // Активный транскрайбер (Lemonade или Whisper API)
 	cfg  *config.Config
 	lang string = "ru"
 	msg  *i18n.Messages
@@ -85,10 +88,14 @@ func transcribeAndCopy(audioPath string) {
 		logger.Debug(msg.ErrorAudioDuration, err)
 	}
 
-	// Проверяем что клиент и конфиг инициализированы
-	if lmn == nil {
-		logger.Error(msg.LemonadeNotInit)
-		fmt.Println(msg.LemonadeNotInit)
+	// Проверяем что транскрайбер и конфиг инициализированы
+	if tr == nil {
+		errMsg := msg.LemonadeNotInit
+		if cfg != nil && cfg.Backend == config.BackendWhisperAPI {
+			errMsg = msg.WhisperAPINotInit
+		}
+		logger.Error(errMsg)
+		fmt.Println(errMsg)
 		tray.SetStatus(tray.StatusIdle)
 		return
 	}
@@ -100,9 +107,15 @@ func transcribeAndCopy(audioPath string) {
 		return
 	}
 
-	logger.Debug(msg.LemonadeURL, cfg.Lemonade.URL)
-	logger.Info(msg.ModelInfo, cfg.Lemonade.Model, cfg.Lemonade.Language)
-	fmt.Printf(msg.ModelInfo+"\n", cfg.Lemonade.Model, cfg.Lemonade.Language)
+	logger.Info(msg.BackendInfo, cfg.Backend)
+	if cfg.Backend == config.BackendLemonade {
+		logger.Debug(msg.LemonadeURL, cfg.Lemonade.URL)
+		logger.Info(msg.ModelInfo, cfg.Lemonade.Model, cfg.Lemonade.Language)
+		fmt.Printf(msg.ModelInfo+"\n", cfg.Lemonade.Model, cfg.Lemonade.Language)
+	} else {
+		logger.Debug(msg.ConfigWhisperAPI, cfg.WhisperAPI.URL, cfg.WhisperAPI.Language)
+		fmt.Printf(msg.BackendInfo+"\n", cfg.Backend)
+	}
 
 	// Проверяем существование файла
 	if _, err := os.Stat(audioPath); os.IsNotExist(err) {
@@ -112,7 +125,7 @@ func transcribeAndCopy(audioPath string) {
 		return
 	}
 
-	result, err := lmn.TranscribeWithStats(audioPath, cfg.Lemonade.Model, cfg.Lemonade.Language, cfg.Lemonade.Prompt, cfg.Lemonade.Temperature)
+	result, err := tr.TranscribeWithStats(audioPath)
 	if err != nil {
 		logger.Error(msg.TranscriptionError, err)
 		fmt.Printf(msg.ErrorPrefix, msg.TranscriptionError)
@@ -170,6 +183,18 @@ func transcribeAndCopy(audioPath string) {
 
 	// Возвращаем статус
 	tray.SetStatus(tray.StatusIdle)
+}
+
+// initTranscriber создаёт транскрайбер в зависимости от выбранного бэкенда
+func initTranscriber(c *config.Config) {
+	switch c.Backend {
+	case config.BackendWhisperAPI:
+		tr = whisper.NewClient(c.WhisperAPI.URL, c.WhisperAPI.Language, c.WhisperAPI.Prompt)
+		lmn = nil // Lemonade не используется
+	default: // lemonade
+		lmn = lemonade.NewClient(c.Lemonade.URL)
+		tr = lemonade.NewTranscriberAdapter(lmn, c.Lemonade.Model, c.Lemonade.Language, c.Lemonade.Prompt, c.Lemonade.Temperature)
+	}
 }
 
 func main() {
@@ -251,6 +276,10 @@ func main() {
 	logger.Debug(msg.ConfigAutostart, cfg.Autostart)
 	logger.Debug(msg.ConfigLogging,
 		cfg.Logging.Enabled, cfg.Logging.Level)
+	logger.Debug(msg.ConfigBackend, cfg.Backend)
+	if cfg.Backend == config.BackendWhisperAPI {
+		logger.Debug(msg.ConfigWhisperAPI, cfg.WhisperAPI.URL, cfg.WhisperAPI.Language)
+	}
 	logger.Debug(msg.ConfigLanguage, cfg.AppLanguage)
 
 	// Создаем рекордер
@@ -261,8 +290,8 @@ func main() {
 	ed = editor.New(lang, cfg.HistorySize)
 	ed.LoadHistory()
 
-	// Создаем Lemonade клиент
-	lmn = lemonade.NewClient(cfg.Lemonade.URL)
+	// Создаём транскрайбер в зависимости от бэкенда
+	initTranscriber(cfg)
 
 	// Создаем менеджер хоткеев
 	hkManager := hotkeys.New()
@@ -338,31 +367,52 @@ func main() {
 	// Callback при сохранении настроек
 	settingsMgr.SetOnConfigChange(func(newCfg *config.Config) {
 		oldLang := cfg.AppLanguage
+		oldBackend := cfg.Backend
 		oldURL := cfg.Lemonade.URL
 		oldModel := cfg.Lemonade.Model
+		oldWhisperURL := cfg.WhisperAPI.URL
+		oldWhisperLang := cfg.WhisperAPI.Language
+		oldWhisperPrompt := cfg.WhisperAPI.Prompt
 
 		// Обновляем глобальный конфиг
 		cfg = newCfg
 
-		// Если URL изменился — пересоздаём клиент
-		if newCfg.Lemonade.URL != oldURL {
-			lmn = lemonade.NewClient(newCfg.Lemonade.URL)
-		}
+		// Если бэкенд сменился — полная пересборка транскрайбера
+		if newCfg.Backend != oldBackend {
+			logger.Info(msg.ConfigBackend, newCfg.Backend)
+			initTranscriber(newCfg)
+		} else if newCfg.Backend == config.BackendLemonade {
+			// Lemonade: обновляем параметры
+			if newCfg.Lemonade.URL != oldURL {
+				lmn = lemonade.NewClient(newCfg.Lemonade.URL)
+				tr = lemonade.NewTranscriberAdapter(lmn, newCfg.Lemonade.Model, newCfg.Lemonade.Language, newCfg.Lemonade.Prompt, newCfg.Lemonade.Temperature)
+			} else if adapter, ok := tr.(*lemonade.TranscriberAdapter); ok {
+				adapter.SetModel(newCfg.Lemonade.Model)
+				adapter.SetLanguage(newCfg.Lemonade.Language)
+				adapter.SetPrompt(newCfg.Lemonade.Prompt)
+				adapter.SetTemperature(newCfg.Lemonade.Temperature)
+			}
 
-		// Если модель изменилась — загружаем новую
-		if newCfg.Lemonade.Model != oldModel {
-			go func() {
-				m := i18n.Get(lang)
-				logger.Info(m.ModelActivating, newCfg.Lemonade.Model)
-				fmt.Println(fmt.Sprintf(m.ModelActivating, newCfg.Lemonade.Model))
-				if err := lmn.LoadModel(newCfg.Lemonade.Model); err != nil {
-					logger.Error(m.ModelLoadError, err)
-					fmt.Println(fmt.Sprintf(m.ModelLoadError, err))
-				} else {
-					logger.Info(m.ModelLoadSuccess, newCfg.Lemonade.Model)
-					fmt.Println(fmt.Sprintf(m.ModelLoadSuccess, newCfg.Lemonade.Model))
-				}
-			}()
+			// Если модель изменилась — загружаем новую
+			if newCfg.Lemonade.Model != oldModel && lmn != nil {
+				go func() {
+					m := i18n.Get(lang)
+					logger.Info(m.ModelActivating, newCfg.Lemonade.Model)
+					fmt.Println(fmt.Sprintf(m.ModelActivating, newCfg.Lemonade.Model))
+					if err := lmn.LoadModel(newCfg.Lemonade.Model); err != nil {
+						logger.Error(m.ModelLoadError, err)
+						fmt.Println(fmt.Sprintf(m.ModelLoadError, err))
+					} else {
+						logger.Info(m.ModelLoadSuccess, newCfg.Lemonade.Model)
+						fmt.Println(fmt.Sprintf(m.ModelLoadSuccess, newCfg.Lemonade.Model))
+					}
+				}()
+			}
+		} else if newCfg.Backend == config.BackendWhisperAPI {
+			// Whisper API: обновляем параметры
+			if newCfg.WhisperAPI.URL != oldWhisperURL || newCfg.WhisperAPI.Language != oldWhisperLang || newCfg.WhisperAPI.Prompt != oldWhisperPrompt {
+				tr = whisper.NewClient(newCfg.WhisperAPI.URL, newCfg.WhisperAPI.Language, newCfg.WhisperAPI.Prompt)
+			}
 		}
 
 		// Обновляем автозапуск
