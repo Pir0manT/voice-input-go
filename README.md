@@ -6,13 +6,14 @@
 
 ## Русский
 
-Приложение для голосового ввода текста. Записывает аудио с микрофона, распознает речь через локальный AI-сервер Whisper и автоматически вставляет текст в любое активное приложение.
+Приложение для голосового ввода текста. Записывает аудио с микрофона, распознает речь через Whisper AI (локальный или удалённый сервер) и автоматически вставляет текст в любое активное приложение.
 
-Работает полностью локально — ваши данные не покидают компьютер.
+Поддерживает два бэкенда: локальный Lemonade Server и внешний Whisper API (Docker, NAS, сетевой сервер).
 
 ### Возможности
 
 - **Голосовой ввод** — нажал горячую клавишу, надиктовал, текст появился в буфере обмена
+- **Два бэкенда** — локальный Lemonade Server или внешний Whisper API (Docker, NAS)
 - **Автовставка** — опциональная автоматическая вставка (Ctrl+V) сразу после распознавания
 - **Редактор текста** — встроенный редактор для правки последнего распознанного текста с историей
 - **Системный трей** — работает в фоне, не мешает, иконка показывает текущий статус
@@ -108,7 +109,7 @@ sudo rpm -i voice-input-go-*.rpm
 
 #### Рабочий процесс
 
-1. Убедитесь, что Lemonade Server запущен
+1. Убедитесь, что выбранный бэкенд (Lemonade Server или Whisper API) запущен и доступен
 2. Запустите Voice Input Go — иконка появится в системном трее
 3. Нажмите `Alt+R` — начнется запись (иконка станет красной)
 4. Говорите в микрофон
@@ -156,13 +157,14 @@ go build -ldflags="-s -w" -o voice-input-go ./cmd/voice-input-go/
 
 ## English
 
-Voice input application. Records audio from microphone, transcribes speech via local Whisper AI server, and automatically pastes text into any active application.
+Voice input application. Records audio from microphone, transcribes speech via Whisper AI (local or remote server), and automatically pastes text into any active application.
 
-Runs entirely locally — your data never leaves your computer.
+Supports two backends: local Lemonade Server and external Whisper API (Docker, NAS, network server).
 
 ### Features
 
 - **Voice input** — press a hotkey, dictate, text appears in clipboard
+- **Two backends** — local Lemonade Server or external Whisper API (Docker, NAS)
 - **Auto-paste** — optional automatic paste (Ctrl+V) right after transcription
 - **Text editor** — built-in editor for correcting last transcribed text with history
 - **System tray** — runs in background, icon shows current status
@@ -258,7 +260,7 @@ sudo rpm -i voice-input-go-*.rpm
 
 #### Workflow
 
-1. Make sure Lemonade Server is running
+1. Make sure your chosen backend (Lemonade Server or Whisper API) is running and accessible
 2. Launch Voice Input Go — icon appears in system tray
 3. Press `Alt+R` — recording starts (icon turns red)
 4. Speak into microphone
