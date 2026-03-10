@@ -401,12 +401,16 @@ func RunSettingsGUI() {
 	soundCheck := widget.NewCheck(msg.CheckboxSound, nil)
 	soundCheck.SetChecked(cfg.Notifications.Sound)
 
+	soundOnRecordCheck := widget.NewCheck(msg.CheckboxSoundOnRecord, nil)
+	soundOnRecordCheck.SetChecked(cfg.Notifications.SoundOnRecord)
+
 	toastCheck := widget.NewCheck(msg.CheckboxToast, nil)
 	toastCheck.SetChecked(cfg.Notifications.Toast)
 
 	notifSection := container.NewVBox(
 		widget.NewLabelWithStyle(msg.SectionNotifications, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		soundCheck,
+		soundOnRecordCheck,
 		toastCheck,
 		widget.NewSeparator(),
 	)
@@ -627,8 +631,9 @@ func RunSettingsGUI() {
 				Prompt:   whisperPromptEntry.Text,
 			},
 			Notifications: config.NotificationsConfig{
-				Sound: soundCheck.Checked,
-				Toast: toastCheck.Checked,
+				Sound:         soundCheck.Checked,
+				Toast:         toastCheck.Checked,
+				SoundOnRecord: soundOnRecordCheck.Checked,
 			},
 			Autostart: autostartCheck.Checked,
 			AutoPaste: autoPasteCheck.Checked,

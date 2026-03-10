@@ -44,6 +44,7 @@ type Messages struct {
 	// Уведомления
 	SectionNotifications string
 	CheckboxSound        string
+	CheckboxSoundOnRecord string
 	CheckboxToast        string
 	
 	// Логирование
@@ -348,7 +349,8 @@ func Get(lang string) *Messages {
 			
 			// Уведомления
 			SectionNotifications: "Уведомления",
-			CheckboxSound:        "Звуковой сигнал",
+			CheckboxSound:        "Звук после распознавания",
+			CheckboxSoundOnRecord: "Звук при начале записи",
 			CheckboxToast:        "Всплывающее уведомление",
 			
 			// Логирование
@@ -650,7 +652,8 @@ func Get(lang string) *Messages {
 			
 			// Уведомления
 			SectionNotifications: "Notifications",
-			CheckboxSound:        "Sound signal",
+			CheckboxSound:        "Sound after transcription",
+			CheckboxSoundOnRecord: "Sound on recording start",
 			CheckboxToast:        "Popup notification",
 			
 			// Логирование

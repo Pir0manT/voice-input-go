@@ -53,8 +53,9 @@ type WhisperAPIConfig struct {
 
 // NotificationsConfig конфигурация уведомлений
 type NotificationsConfig struct {
-	Sound bool `json:"sound"`
-	Toast bool `json:"toast"`
+	Sound         bool `json:"sound"`
+	Toast         bool `json:"toast"`
+	SoundOnRecord bool `json:"soundOnRecord"` // Звук при начале записи
 }
 
 // LoggingConfig конфигурация логирования

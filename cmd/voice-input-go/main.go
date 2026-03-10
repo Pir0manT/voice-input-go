@@ -309,6 +309,14 @@ func main() {
 			} else {
 				tray.SetStatus(tray.StatusRecording)
 				fmt.Println(msg.RecordingStarted)
+				// Звуковой сигнал при начале записи
+				if cfg.Notifications.SoundOnRecord {
+					go func() {
+						if err := notify.PlaySound(); err != nil {
+							logger.Error(msg.ErrorPlaySound, err)
+						}
+					}()
+				}
 			}
 		},
 		"stop": func() {
