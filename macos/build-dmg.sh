@@ -106,6 +106,10 @@ echo "Bundle created: ${BUNDLE_NAME}"
 echo "Building DMG..."
 rm -f "$DMG_NAME"
 
+# Detach any leftover volume with the same name (CI flakiness workaround)
+hdiutil detach "/Volumes/Voice Input" 2>/dev/null || true
+sleep 1
+
 # Create temp dir for DMG contents
 DMG_DIR=$(mktemp -d)
 cp -R "${BUNDLE_NAME}" "${DMG_DIR}/"
