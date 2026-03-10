@@ -4,15 +4,32 @@ package clipboard
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 )
 
+// ensureUTF8Env возвращает окружение с гарантированным LANG=en_US.UTF-8.
+// При запуске .app из Finder переменная LANG может быть не установлена,
+// и pbcopy/pbpaste будет интерпретировать UTF-8 байты в неверной кодировке.
+func ensureUTF8Env() []string {
+	env := os.Environ()
+	for _, e := range env {
+		if strings.HasPrefix(e, "LANG=") {
+			return nil // уже установлена — не трогаем
+		}
+	}
+	return append(env, "LANG=en_US.UTF-8")
+}
+
 func copyPlatform(text string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		cmd := exec.Command("pbcopy")
+		if env := ensureUTF8Env(); env != nil {
+			cmd.Env = env
+		}
 		cmd.Stdin = strings.NewReader(text)
 		return cmd.Run()
 	case "linux":
@@ -42,7 +59,11 @@ func copyPlatform(text string) error {
 func pastePlatform() (string, error) {
 	switch runtime.GOOS {
 	case "darwin":
-		out, err := exec.Command("pbpaste").Output()
+		cmd := exec.Command("pbpaste")
+		if env := ensureUTF8Env(); env != nil {
+			cmd.Env = env
+		}
+		out, err := cmd.Output()
 		if err != nil {
 			return "", err
 		}
