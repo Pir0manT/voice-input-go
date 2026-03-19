@@ -78,7 +78,7 @@ func (s *Settings) Show() {
 
 // ShowLogs открывает окно настроек на вкладке логов
 func (s *Settings) ShowLogs() {
-	s.show(2)
+	s.show(-1) // -1 = последняя вкладка
 }
 
 func (s *Settings) show(initialTab int) {

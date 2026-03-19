@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-audio/wav"
 	"github.com/Pir0manT/voice-input-go/internal/autostart"
@@ -12,6 +13,7 @@ import (
 	"github.com/Pir0manT/voice-input-go/internal/editor"
 	"github.com/Pir0manT/voice-input-go/internal/hotkeys"
 	"github.com/Pir0manT/voice-input-go/internal/i18n"
+	"github.com/Pir0manT/voice-input-go/internal/fastflowlm"
 	"github.com/Pir0manT/voice-input-go/internal/lemonade"
 	"github.com/Pir0manT/voice-input-go/internal/logger"
 	"github.com/Pir0manT/voice-input-go/internal/logview"
@@ -93,6 +95,8 @@ func transcribeAndCopy(audioPath string) {
 		errMsg := msg.LemonadeNotInit
 		if cfg != nil && cfg.Backend == config.BackendWhisperAPI {
 			errMsg = msg.WhisperAPINotInit
+		} else if cfg != nil && cfg.Backend == config.BackendFastFlowLM {
+			errMsg = msg.FastFlowLMNotInit
 		}
 		logger.Error(errMsg)
 		fmt.Println(errMsg)
@@ -108,11 +112,16 @@ func transcribeAndCopy(audioPath string) {
 	}
 
 	logger.Info(msg.BackendInfo, cfg.Backend)
-	if cfg.Backend == config.BackendLemonade {
+	switch cfg.Backend {
+	case config.BackendLemonade:
 		logger.Debug(msg.LemonadeURL, cfg.Lemonade.URL)
 		logger.Info(msg.ModelInfo, cfg.Lemonade.Model, cfg.Lemonade.Language)
 		fmt.Printf(msg.ModelInfo+"\n", cfg.Lemonade.Model, cfg.Lemonade.Language)
-	} else {
+	case config.BackendFastFlowLM:
+		logger.Debug(msg.ConfigFastFlowLM, cfg.FastFlowLM.URL, cfg.FastFlowLM.Model, cfg.FastFlowLM.Language)
+		logger.Info(msg.ModelInfo, cfg.FastFlowLM.Model, cfg.FastFlowLM.Language)
+		fmt.Printf(msg.ModelInfo+"\n", cfg.FastFlowLM.Model, cfg.FastFlowLM.Language)
+	default:
 		logger.Debug(msg.ConfigWhisperAPI, cfg.WhisperAPI.URL, cfg.WhisperAPI.Language)
 		fmt.Printf(msg.BackendInfo+"\n", cfg.Backend)
 	}
@@ -190,7 +199,29 @@ func initTranscriber(c *config.Config) {
 	switch c.Backend {
 	case config.BackendWhisperAPI:
 		tr = whisper.NewClient(c.WhisperAPI.URL, c.WhisperAPI.Language, c.WhisperAPI.Prompt)
-		lmn = nil // Lemonade не используется
+		lmn = nil
+	case config.BackendFastFlowLM:
+		lmn = nil
+		m := i18n.Get(lang)
+		// Автозапуск FLM-сервера
+		logger.Info(m.FastFlowLMStarting)
+		fmt.Println(m.FastFlowLMStarting)
+		if err := fastflowlm.EnsureRunning(c.FastFlowLM.URL, c.FastFlowLM.LLMModel); err != nil {
+			logger.Error(m.FastFlowLMStartError, err)
+			fmt.Println(fmt.Sprintf(m.FastFlowLMStartError, err))
+			// Показываем toast если FLM не установлен
+			if !fastflowlm.IsInstalled() {
+				logger.Error(m.FastFlowLMNotInstalled)
+				fmt.Println(m.FastFlowLMNotInstalled)
+				if err := notify.ShowToast(m.ToastTitle, m.FastFlowLMNotInstalled); err != nil {
+					logger.Error(m.ErrorShowToast, err)
+				}
+			}
+		} else {
+			logger.Info(m.FastFlowLMStarted)
+			fmt.Println(m.FastFlowLMStarted)
+		}
+		tr = fastflowlm.NewClient(c.FastFlowLM.URL, c.FastFlowLM.Model, c.FastFlowLM.Language, c.FastFlowLM.Prompt)
 	default: // lemonade
 		lmn = lemonade.NewClient(c.Lemonade.URL)
 		tr = lemonade.NewTranscriberAdapter(lmn, c.Lemonade.Model, c.Lemonade.Language, c.Lemonade.Prompt, c.Lemonade.Temperature)
@@ -279,6 +310,8 @@ func main() {
 	logger.Debug(msg.ConfigBackend, cfg.Backend)
 	if cfg.Backend == config.BackendWhisperAPI {
 		logger.Debug(msg.ConfigWhisperAPI, cfg.WhisperAPI.URL, cfg.WhisperAPI.Language)
+	} else if cfg.Backend == config.BackendFastFlowLM {
+		logger.Debug(msg.ConfigFastFlowLM, cfg.FastFlowLM.URL, cfg.FastFlowLM.Model, cfg.FastFlowLM.Language)
 	}
 	logger.Debug(msg.ConfigLanguage, cfg.AppLanguage)
 
@@ -396,6 +429,10 @@ func main() {
 		oldWhisperURL := cfg.WhisperAPI.URL
 		oldWhisperLang := cfg.WhisperAPI.Language
 		oldWhisperPrompt := cfg.WhisperAPI.Prompt
+		oldFlmURL := cfg.FastFlowLM.URL
+		oldFlmModel := cfg.FastFlowLM.Model
+		oldFlmLang := cfg.FastFlowLM.Language
+		oldFlmPrompt := cfg.FastFlowLM.Prompt
 
 		// Обновляем глобальный конфиг
 		cfg = newCfg
@@ -403,6 +440,11 @@ func main() {
 		// Если бэкенд сменился — полная пересборка транскрайбера
 		if newCfg.Backend != oldBackend {
 			logger.Info(msg.ConfigBackend, newCfg.Backend)
+			// Если уходим с FastFlowLM — останавливаем сервер и ждём освобождения ресурсов
+			if oldBackend == config.BackendFastFlowLM {
+				fastflowlm.StopServer()
+				time.Sleep(2 * time.Second) // даём время на освобождение NPU/портов
+			}
 			initTranscriber(newCfg)
 		} else if newCfg.Backend == config.BackendLemonade {
 			// Lemonade: обновляем параметры
@@ -435,6 +477,25 @@ func main() {
 			// Whisper API: обновляем параметры
 			if newCfg.WhisperAPI.URL != oldWhisperURL || newCfg.WhisperAPI.Language != oldWhisperLang || newCfg.WhisperAPI.Prompt != oldWhisperPrompt {
 				tr = whisper.NewClient(newCfg.WhisperAPI.URL, newCfg.WhisperAPI.Language, newCfg.WhisperAPI.Prompt)
+			}
+		} else if newCfg.Backend == config.BackendFastFlowLM {
+			// FastFlowLM: обновляем параметры
+			if newCfg.FastFlowLM.URL != oldFlmURL || newCfg.FastFlowLM.Model != oldFlmModel {
+				// URL или модель изменились — пересоздаём
+				go func() {
+					m := i18n.Get(lang)
+					if err := fastflowlm.EnsureRunning(newCfg.FastFlowLM.URL, newCfg.FastFlowLM.LLMModel); err != nil {
+						logger.Error(m.FastFlowLMStartError, err)
+					}
+				}()
+				tr = fastflowlm.NewClient(newCfg.FastFlowLM.URL, newCfg.FastFlowLM.Model, newCfg.FastFlowLM.Language, newCfg.FastFlowLM.Prompt)
+			} else if client, ok := tr.(*fastflowlm.Client); ok {
+				if newCfg.FastFlowLM.Language != oldFlmLang {
+					client.SetLanguage(newCfg.FastFlowLM.Language)
+				}
+				if newCfg.FastFlowLM.Prompt != oldFlmPrompt {
+					client.SetPrompt(newCfg.FastFlowLM.Prompt)
+				}
 			}
 		}
 
@@ -508,4 +569,7 @@ func main() {
 
 	// Запускаем трей (это блокирующий вызов)
 	tray.Start(cfg, callbacks, lang)
+
+	// При выходе — останавливаем FLM-сервер (если мы его запускали)
+	fastflowlm.StopServer()
 }

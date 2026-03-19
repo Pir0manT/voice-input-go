@@ -9,16 +9,18 @@ import (
 
 // Backend тип бэкенда транскрибации
 const (
-	BackendLemonade  = "lemonade"
-	BackendWhisperAPI = "whisper-api"
+	BackendLemonade    = "lemonade"
+	BackendWhisperAPI  = "whisper-api"
+	BackendFastFlowLM  = "fastflowlm"
 )
 
 // Config структура конфигурации приложения
 type Config struct {
 	Hotkeys       HotkeysConfig       `json:"hotkeys"`
-	Backend       string              `json:"backend"`       // "lemonade" или "whisper-api"
+	Backend       string              `json:"backend"`       // "lemonade", "whisper-api" или "fastflowlm"
 	Lemonade      LemonadeConfig      `json:"lemonade"`
 	WhisperAPI    WhisperAPIConfig    `json:"whisperApi"`
+	FastFlowLM    FastFlowLMConfig    `json:"fastflowlm"`
 	Notifications NotificationsConfig `json:"notifications"`
 	Autostart     bool                `json:"autostart"`
 	AutoPaste     bool                `json:"autoPaste"`
@@ -42,6 +44,15 @@ type LemonadeConfig struct {
 	Language    string  `json:"language"`
 	Prompt      string  `json:"prompt"`
 	Temperature float64 `json:"temperature"`
+}
+
+// FastFlowLMConfig конфигурация FastFlowLM (AMD Ryzen AI NPU)
+type FastFlowLMConfig struct {
+	URL      string `json:"url"`      // Базовый URL (по умолчанию http://localhost:52625)
+	Model    string `json:"model"`    // Whisper модель для API (whisper-v3)
+	LLMModel string `json:"llmModel"` // LLM модель для запуска сервера (llama3.2:1b)
+	Language string `json:"language"` // Код языка (ru, en...)
+	Prompt   string `json:"prompt"`   // Подсказка для контекста
 }
 
 // WhisperAPIConfig конфигурация внешнего Whisper API (whisper-asr-webservice и совместимые)
@@ -82,6 +93,13 @@ func Default() *Config {
 		},
 		WhisperAPI: WhisperAPIConfig{
 			URL:      "http://localhost:9000",
+			Language: "ru",
+			Prompt:   "",
+		},
+		FastFlowLM: FastFlowLMConfig{
+			URL:      "http://localhost:52625",
+			Model:    "whisper-v3",
+			LLMModel: "",
 			Language: "ru",
 			Prompt:   "",
 		},
@@ -137,6 +155,17 @@ func Load() (*Config, error) {
 	// Нормализация: если HistorySize не задан, ставим дефолт
 	if cfg.HistorySize <= 0 {
 		cfg.HistorySize = 20
+	}
+
+	// Нормализация: если FastFlowLM не задан, ставим дефолты
+	if cfg.FastFlowLM.URL == "" {
+		cfg.FastFlowLM.URL = "http://localhost:52625"
+	}
+	if cfg.FastFlowLM.Model == "" {
+		cfg.FastFlowLM.Model = "whisper-v3"
+	}
+	if cfg.FastFlowLM.Language == "" {
+		cfg.FastFlowLM.Language = "ru"
 	}
 
 	return &cfg, nil

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/Pir0manT/voice-input-go/internal/config"
+	"github.com/Pir0manT/voice-input-go/internal/fastflowlm"
 	"github.com/Pir0manT/voice-input-go/internal/i18n"
 	"github.com/Pir0manT/voice-input-go/internal/lemonade"
 )
@@ -62,6 +64,11 @@ func RunSettingsGUI() {
 	// === Выбор бэкенда ===
 	backendOptions := []string{msg.BackendLemonade, msg.BackendWhisperAPI}
 	backendValues := []string{"lemonade", "whisper-api"}
+	// FastFlowLM скрыт на macOS
+	if runtime.GOOS != "darwin" {
+		backendOptions = append(backendOptions, msg.BackendFastFlowLM)
+		backendValues = append(backendValues, "fastflowlm")
+	}
 	currentBackendDisplay := msg.BackendLemonade
 	for i, v := range backendValues {
 		if v == cfg.Backend {
@@ -579,14 +586,256 @@ func RunSettingsGUI() {
 		container.NewHBox(whisperCheckBtn, whisperStatus),
 	)
 
+	// === Вкладка "FastFlowLM" (скрыта на macOS) ===
+	var flmURLEntry *widget.Entry
+	var flmLLMModelEntry *widget.Entry
+	var flmModelSelect *widget.Select
+	var flmLangSelect *widget.Select
+	var flmPromptEntry *widget.Entry
+
+	var flmTab *container.TabItem
+	if runtime.GOOS != "darwin" {
+		flmURLEntry = widget.NewEntry()
+		flmURLEntry.SetText(cfg.FastFlowLM.URL)
+		flmURLEntry.SetPlaceHolder(msg.FastFlowLMHintURL)
+
+		// --- Модель FLM: динамический список ---
+		var flmModelList []fastflowlm.ModelInfo
+
+		flmModelOptions := []string{cfg.FastFlowLM.Model}
+		flmModelSelect = widget.NewSelect(flmModelOptions, nil)
+		flmModelSelect.SetSelected(cfg.FastFlowLM.Model)
+
+		flmModelStatus := widget.NewLabel(msg.ModelLoading)
+		flmInstallBtn := widget.NewButton(msg.ModelInstall, nil)
+		flmInstallBtn.Hide()
+
+		flmProgressBar := widget.NewProgressBar()
+		flmProgressBar.Hide()
+
+		updateFlmModelUI := func(modelID string) {
+			downloaded := true
+			for _, m := range flmModelList {
+				if m.ID == modelID {
+					downloaded = m.Downloaded
+					break
+				}
+			}
+			if downloaded {
+				flmModelStatus.SetText(msg.ModelReady)
+				flmInstallBtn.Hide()
+				flmProgressBar.Hide()
+			} else {
+				flmModelStatus.SetText(msg.ModelNotInstalled)
+				flmInstallBtn.Show()
+				flmProgressBar.Hide()
+			}
+		}
+
+		flmModelSelect.OnChanged = func(selected string) {
+			modelID := extractModelID(selected)
+			updateFlmModelUI(modelID)
+		}
+
+		fetchFlmModels := func(serverURL string) {
+			flmModelStatus.SetText(msg.ModelLoading)
+			flmInstallBtn.Hide()
+			flmProgressBar.Hide()
+			go func() {
+				models, err := fastflowlm.GetModels(serverURL)
+				if err != nil {
+					// Сервер недоступен — показываем захардкоженный список
+					models = fastflowlm.KnownWhisperModels()
+				}
+				if len(models) == 0 {
+					fyne.Do(func() { flmModelStatus.SetText(msg.ModelFetchEmpty) })
+					return
+				}
+
+				flmModelList = models
+				options := make([]string, 0, len(models))
+				for _, m := range models {
+					label := m.ID
+					if m.Downloaded {
+						label += " " + msg.ModelDownloaded
+					} else if m.Size > 0 {
+						label += " " + fmt.Sprintf(msg.ModelNotDownloaded, m.Size)
+					}
+					options = append(options, label)
+				}
+
+				currentSelected := ""
+				for _, opt := range options {
+					if strings.HasPrefix(opt, cfg.FastFlowLM.Model) {
+						currentSelected = opt
+						break
+					}
+				}
+
+				fyne.Do(func() {
+					flmModelSelect.Options = options
+					flmModelSelect.Refresh()
+					if currentSelected != "" {
+						flmModelSelect.SetSelected(currentSelected)
+					}
+					selectedID := extractModelID(flmModelSelect.Selected)
+					updateFlmModelUI(selectedID)
+				})
+			}()
+		}
+
+		flmInstallBtn.OnTapped = func() {
+			modelID := extractModelID(flmModelSelect.Selected)
+			flmInstallBtn.Disable()
+			flmProgressBar.Hide()
+			flmModelStatus.SetText(fmt.Sprintf(msg.ModelInstalling, modelID))
+
+			go func() {
+				progressShown := false
+				pullTag := fastflowlm.GetTagByID(modelID)
+				err := fastflowlm.PullModel(flmURLEntry.Text, pullTag, func(p fastflowlm.PullProgress) {
+					val := float64(p.Percent) / 100.0
+					text := fmt.Sprintf(msg.ModelInstallProgress, modelID, p.Percent)
+					show := !progressShown
+					progressShown = true
+					fyne.Do(func() {
+						if show {
+							flmProgressBar.SetValue(0)
+							flmProgressBar.Show()
+						}
+						flmProgressBar.SetValue(val)
+						flmModelStatus.SetText(text)
+					})
+				})
+
+				if err != nil {
+					errText := fmt.Sprintf(msg.ModelInstallError, err)
+					fyne.Do(func() {
+						flmModelStatus.SetText(errText)
+						flmInstallBtn.Enable()
+						flmProgressBar.Hide()
+					})
+					return
+				}
+
+				for i := range flmModelList {
+					if flmModelList[i].ID == modelID {
+						flmModelList[i].Downloaded = true
+						break
+					}
+				}
+
+				options := make([]string, 0, len(flmModelList))
+				for _, m := range flmModelList {
+					label := m.ID
+					if m.Downloaded {
+						label += " " + msg.ModelDownloaded
+					} else if m.Size > 0 {
+						label += " " + fmt.Sprintf(msg.ModelNotDownloaded, m.Size)
+					}
+					options = append(options, label)
+				}
+
+				doneText := fmt.Sprintf(msg.ModelInstallDone, modelID)
+				fyne.Do(func() {
+					flmProgressBar.SetValue(1.0)
+					flmModelStatus.SetText(doneText)
+					flmProgressBar.Hide()
+					flmInstallBtn.Hide()
+
+					flmModelSelect.Options = options
+					flmModelSelect.Refresh()
+					for _, opt := range options {
+						if strings.HasPrefix(opt, modelID) {
+							flmModelSelect.SetSelected(opt)
+							break
+						}
+					}
+				})
+			}()
+		}
+
+		flmRefreshBtn := widget.NewButton(msg.ModelRefresh, func() {
+			fetchFlmModels(flmURLEntry.Text)
+		})
+
+		fetchFlmModels(cfg.FastFlowLM.URL)
+
+		flmLangDisplayNames := []string{msg.LangRussian, msg.LangEnglish}
+		flmLangValues := []string{"ru", "en"}
+		currentFlmLangDisplay := msg.LangRussian
+		for i, v := range flmLangValues {
+			if v == cfg.FastFlowLM.Language {
+				currentFlmLangDisplay = flmLangDisplayNames[i]
+				break
+			}
+		}
+		flmLangSelect = widget.NewSelect(flmLangDisplayNames, nil)
+		flmLangSelect.SetSelected(currentFlmLangDisplay)
+
+		flmPromptEntry = widget.NewMultiLineEntry()
+		flmPromptEntry.SetText(cfg.FastFlowLM.Prompt)
+		flmPromptEntry.SetPlaceHolder(msg.HintPrompt)
+		flmPromptEntry.SetMinRowsVisible(2)
+
+		flmLLMModelEntry = widget.NewEntry()
+		flmLLMModelEntry.SetText(cfg.FastFlowLM.LLMModel)
+		flmLLMModelEntry.SetPlaceHolder(msg.FastFlowLMHintLLMModel)
+
+		flmModelRow := container.NewBorder(nil, nil, nil, flmRefreshBtn, flmModelSelect)
+		flmModelActionRow := container.NewBorder(nil, nil, flmInstallBtn, nil, flmProgressBar)
+
+		flmStatus := widget.NewLabel("")
+		flmCheckBtn := widget.NewButton(msg.FastFlowLMCheckBtn, func() {
+			flmStatus.SetText(msg.FastFlowLMStatus)
+			go func() {
+				client := &http.Client{Timeout: 10 * time.Second}
+				resp, err := client.Get(flmURLEntry.Text + "/v1/models")
+				if err != nil {
+					errText := fmt.Sprintf(msg.FastFlowLMStatusError, err)
+					fyne.Do(func() { flmStatus.SetText(errText) })
+					return
+				}
+				resp.Body.Close()
+				fyne.Do(func() { flmStatus.SetText(msg.FastFlowLMStatusOK) })
+			}()
+		})
+
+		flmSection := container.NewVBox(
+			widget.NewLabelWithStyle(msg.SectionFastFlowLM, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			container.New(layout.NewFormLayout(),
+				widget.NewLabel(msg.LabelURL), flmURLEntry,
+				widget.NewLabel(msg.FastFlowLMLLMModel), flmLLMModelEntry,
+				widget.NewLabel(msg.LabelModel), flmModelRow,
+			),
+			flmModelStatus,
+			flmModelActionRow,
+			container.New(layout.NewFormLayout(),
+				widget.NewLabel(msg.LabelLanguage), flmLangSelect,
+			),
+			widget.NewLabel(msg.LabelPrompt),
+			flmPromptEntry,
+			widget.NewSeparator(),
+			container.NewHBox(flmCheckBtn, flmStatus),
+		)
+
+		flmTab = container.NewTabItem(msg.TabFastFlowLM, container.NewVScroll(flmSection))
+	}
+
 	// === Табы ===
-	tabs := container.NewAppTabs(
+	tabItems := []*container.TabItem{
 		container.NewTabItem(msg.TabGeneral, generalTab),
 		container.NewTabItem(msg.SectionLemonade, container.NewVScroll(lemonadeSection)),
 		container.NewTabItem(msg.TabWhisperAPI, whisperAPITab),
+	}
+	if flmTab != nil {
+		tabItems = append(tabItems, flmTab)
+	}
+	tabItems = append(tabItems,
 		container.NewTabItem(msg.TabNotifications, notifTab),
 		container.NewTabItem(msg.TabLogs, logsTab),
 	)
+	tabs := container.NewAppTabs(tabItems...)
 
 	// Ленивая загрузка логов — только при переходе на вкладку
 	tabs.OnSelected = func(tab *container.TabItem) {
@@ -596,8 +845,11 @@ func RunSettingsGUI() {
 		}
 	}
 
-	// Если запрошена конкретная вкладка (например, логи из трея)
-	if input.InitialTab > 0 && input.InitialTab < len(tabs.Items) {
+	// Если запрошена конкретная вкладка
+	if input.InitialTab < 0 {
+		// Отрицательное значение — последняя вкладка (логи)
+		tabs.SelectIndex(len(tabs.Items) - 1)
+	} else if input.InitialTab > 0 && input.InitialTab < len(tabs.Items) {
 		tabs.SelectIndex(input.InitialTab)
 	}
 
@@ -609,6 +861,24 @@ func RunSettingsGUI() {
 		selectedModel := modelSelect.Selected
 		if idx := strings.Index(selectedModel, " ("); idx > 0 {
 			selectedModel = selectedModel[:idx]
+		}
+
+		// FastFlowLM config
+		flmCfg := cfg.FastFlowLM // сохраняем текущий, если вкладки нет
+		if flmURLEntry != nil {
+			flmSelectedModel := flmModelSelect.Selected
+			if idx := strings.Index(flmSelectedModel, " ("); idx > 0 {
+				flmSelectedModel = flmSelectedModel[:idx]
+			}
+			flmLangDisplayNames := []string{msg.LangRussian, msg.LangEnglish}
+			flmLangValues := []string{"ru", "en"}
+			flmCfg = config.FastFlowLMConfig{
+				URL:      flmURLEntry.Text,
+				Model:    flmSelectedModel,
+				LLMModel: flmLLMModelEntry.Text,
+				Language: langDisplayToValue(flmLangSelect.Selected, flmLangDisplayNames, flmLangValues),
+				Prompt:   flmPromptEntry.Text,
+			}
 		}
 
 		newCfg := &config.Config{
@@ -630,6 +900,7 @@ func RunSettingsGUI() {
 				Language: langDisplayToValue(whisperLangSelect.Selected, whisperLangDisplayNames, whisperLangValues),
 				Prompt:   whisperPromptEntry.Text,
 			},
+			FastFlowLM: flmCfg,
 			Notifications: config.NotificationsConfig{
 				Sound:         soundCheck.Checked,
 				Toast:         toastCheck.Checked,

@@ -295,6 +295,25 @@ type Messages struct {
 	ConfigWhisperAPI      string
 	ConfigBackend         string
 
+	// FastFlowLM
+	BackendFastFlowLM       string
+	TabFastFlowLM           string
+	SectionFastFlowLM       string
+	HintBackendFastFlowLM   string
+	FastFlowLMHintURL       string
+	FastFlowLMStatus        string
+	FastFlowLMStatusOK      string
+	FastFlowLMStatusError   string
+	FastFlowLMCheckBtn      string
+	FastFlowLMNotInit       string
+	FastFlowLMLLMModel      string
+	FastFlowLMHintLLMModel  string
+	FastFlowLMNotInstalled  string
+	FastFlowLMStarting      string
+	FastFlowLMStarted       string
+	FastFlowLMStartError    string
+	ConfigFastFlowLM        string
+
 	// Ошибки (внутренние, для логов)
 	ErrorAudioDuration    string
 	ErrorAutostartEnable  string
@@ -601,6 +620,25 @@ func Get(lang string) *Messages {
 			ConfigWhisperAPI:      "   🌐 Whisper API: URL=%s, Language=%s",
 			ConfigBackend:         "   🔀 Бэкенд: %s",
 
+			// FastFlowLM
+			BackendFastFlowLM:       "FastFlowLM (NPU, локальный)",
+			TabFastFlowLM:           "FastFlowLM",
+			SectionFastFlowLM:       "FastFlowLM",
+			HintBackendFastFlowLM:   "AMD Ryzen AI NPU — локальная транскрибация",
+			FastFlowLMHintURL:       "Адрес сервера, по умолчанию http://localhost:52625",
+			FastFlowLMStatus:        "Статус: проверка...",
+			FastFlowLMStatusOK:      "Сервер доступен",
+			FastFlowLMStatusError:   "Сервер недоступен: %v",
+			FastFlowLMCheckBtn:      "Проверить",
+			FastFlowLMNotInit:       "FastFlowLM клиент не инициализирован!",
+			FastFlowLMLLMModel:      "LLM модель:",
+			FastFlowLMHintLLMModel:  "LLM модель для запуска сервера (напр. llama3.2:1b)",
+			FastFlowLMNotInstalled:  "FLM не найден в PATH. Установите FastFlowLM: https://github.com/amd/FastFlowLM",
+			FastFlowLMStarting:      "Запуск FLM-сервера...",
+			FastFlowLMStarted:       "FLM-сервер запущен",
+			FastFlowLMStartError:    "Ошибка запуска FLM-сервера: %v",
+			ConfigFastFlowLM:        "   ⚡ FastFlowLM: URL=%s, Model=%s, Language=%s",
+
 			// Ошибки (внутренние, для логов)
 			ErrorAudioDuration:    "Не удалось получить длительность аудио: %v",
 			ErrorAutostartEnable:  "Ошибка включения автозапуска: %v",
@@ -903,6 +941,25 @@ func Get(lang string) *Messages {
 			BackendInfo:           "Backend: %s",
 			ConfigWhisperAPI:      "   🌐 Whisper API: URL=%s, Language=%s",
 			ConfigBackend:         "   🔀 Backend: %s",
+
+			// FastFlowLM
+			BackendFastFlowLM:       "FastFlowLM (NPU, local)",
+			TabFastFlowLM:           "FastFlowLM",
+			SectionFastFlowLM:       "FastFlowLM",
+			HintBackendFastFlowLM:   "AMD Ryzen AI NPU — local transcription",
+			FastFlowLMHintURL:       "Server address, default http://localhost:52625",
+			FastFlowLMStatus:        "Status: checking...",
+			FastFlowLMStatusOK:      "Server available",
+			FastFlowLMStatusError:   "Server unavailable: %v",
+			FastFlowLMCheckBtn:      "Check",
+			FastFlowLMNotInit:       "FastFlowLM client not initialized!",
+			FastFlowLMLLMModel:      "LLM model:",
+			FastFlowLMHintLLMModel:  "LLM model for server launch (e.g. llama3.2:1b)",
+			FastFlowLMNotInstalled:  "FLM not found in PATH. Install FastFlowLM: https://github.com/amd/FastFlowLM",
+			FastFlowLMStarting:      "Starting FLM server...",
+			FastFlowLMStarted:       "FLM server started",
+			FastFlowLMStartError:    "FLM server start error: %v",
+			ConfigFastFlowLM:        "   ⚡ FastFlowLM: URL=%s, Model=%s, Language=%s",
 
 			// Ошибки (внутренние, для логов)
 			ErrorAudioDuration:    "Failed to get audio duration: %v",
